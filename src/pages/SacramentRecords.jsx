@@ -215,10 +215,6 @@ const SacramentRecords = () => {
                   Complete record of all sacraments administered in the parish
                 </CardDescription>
               </div>
-              <Button className="bg-amber-600 hover:bg-amber-700 text-white">
-                <Plus className="w-4 h-4 mr-2" />
-                Add New Record
-              </Button>
             </div>
           </CardHeader>
           <CardContent className="p-6">

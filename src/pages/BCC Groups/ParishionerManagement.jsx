@@ -16,77 +16,92 @@ import axiosInstance from "../../api-handler/api-handler";
 import { useEffect, useState } from "react";
 import AddBccGroupModal from "./AddBccGroupModal";
 
-// const statsData = {
-//   bccGroups: 12,
-//   families: 156,
-//   parishioners: 487,
-// };
-
-// const bccGroupsData = [
-//   {
-//     id: 1,
-//     sno: 1,
-//     name: "St. Mary's Group",
-//     area: "Downtown Parish",
-//     familycount: 15,
-//   },
-//   {
-//     id: 2,
-//     sno: 2,
-//     name: "Sacred Heart Group",
-//     area: "North Parish",
-//     familycount: 12,
-//   },
-//   {
-//     id: 3,
-//     sno: 3,
-//     name: "St. Joseph's Group",
-//     area: "East Parish",
-//     familycount: 18,
-//   },
-//   {
-//     id: 4,
-//     sno: 4,
-//     name: "Holy Spirit Group",
-//     area: "West Parish",
-//     familycount: 10,
-//   },
-//   {
-//     id: 5,
-//     sno: 5,
-//     name: "Divine Mercy Group",
-//     area: "South Parish",
-//     familycount: 14,
-//   },
-// ];
-
 const ParishionerManagement = () => {
   const navigate = useNavigate();
   const { success, error, warning } = useToaster();
+
   const [bccGroupsData, setBccGroupsData] = useState([]);
   const [statsData, setStatsData] = useState({});
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  const [editBCCGroup, setEditBCCGroup] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editArea, setEditArea] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
+
   const fetchData = async () => {
     try {
-      const res = await axiosInstance.get(
-        "/api/parishioners/getInitialDetails"
-      );
-      setBccGroupsData(res.data.groups);    
+      const res = await axiosInstance.get("/api/parishioners/getInitialDetails");
+      setBccGroupsData(res.data.groups);
       setStatsData({
         bccGroups: res.data.bccGroupsCount,
         families: res.data.familiesCount,
         parishioners: res.data.parishionersCount,
       });
-      console.log(bccGroupsData);
-      console.log(res);
     } catch (err) {
       console.log(err);
+      error("Failed to fetch data.");
     }
   };
-  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleEditBccGroup = (group) => {
+    setEditBCCGroup(group);
+    setEditName(group.name);
+    setEditArea(group.area);
+  };
+
+  const handleViewBccGroup = (group) => {
+    navigate(`/parishioners/groups/${group.id}`);
+  };
+
+  const handleDeleteBccGroup = async (group) => {
+    if (group.familycount > 0) {
+      warning(
+        `Cannot delete ${group.name}. Please move or remove all families first.`
+      );
+    } else {
+      if (window.confirm(`Are you sure you want to delete ${group.name}?`)) {
+        try {
+          await axiosInstance.delete("/api/parishioners/deleteBCCGroup",{
+            id:group.id
+          });
+          success(`${group.name} has been deleted successfully.`);
+          fetchData();
+        } catch (err) {
+          console.error(err);
+          error("Failed to delete the group.");
+        }
+      }
+    }
+  };
+
+  const submitGroupUpdate = async () => {
+    if (!editName.trim() || !editArea.trim()) {
+      warning("Name and area fields cannot be empty.");
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      await axiosInstance.put("/api/parishioners/updateBCCGroup", {
+        id:editBCCGroup.id,
+        name: editName,
+        area: editArea,
+      });
+      success(`${editName} has been updated successfully.`);
+      setEditBCCGroup(null);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      error("Failed to update group.");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const bccGroupColumns = [
     { key: "name", header: "Group Name" },
@@ -108,28 +123,6 @@ const ParishionerManagement = () => {
       ),
     },
   ];
-
-  const handleEditBccGroup = (group) => {
-    // Navigate to edit form or open modal
-    success(`"Edit functionality for ${group.name} will be implemented"`);
-  };
-
-  const handleViewBccGroup = (group) => {
-    navigate(`/parishioners/groups/${group.id}`);
-  };
-
-  const handleDeleteBccGroup = (group) => {
-    if (group.familycount > 0) {
-      warning(
-        `Cannot delete ${group.name}. Please move or remove all families first.`
-      );
-    } else {
-      // Show confirmation dialog
-      if (window.confirm(`Are you sure you want to delete ${group.name}?`)) {
-        success(`${group.name} has been deleted successfully.`);
-      }
-    }
-  };
 
   return (
     <Layout>
@@ -219,6 +212,48 @@ const ParishionerManagement = () => {
                 onClose={() => setShowAddModal(false)}
                 fetchBccGroups={fetchData}
               />
+            )}
+
+            {editBCCGroup && (
+              <div className="mb-6 p-4 border border-amber-300 rounded bg-amber-50">
+                <h3 className="text-amber-900 text-lg mb-2">
+                  Edit Group: {editBCCGroup.name}
+                </h3>
+                <div className="mb-3">
+                  <label className="block text-amber-700 mb-1">Group Name</label>
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full border border-amber-300 rounded px-3 py-2"
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="block text-amber-700 mb-1">Area</label>
+                  <input
+                    type="text"
+                    value={editArea}
+                    onChange={(e) => setEditArea(e.target.value)}
+                    className="w-full border border-amber-300 rounded px-3 py-2"
+                  />
+                </div>
+                <div className="flex space-x-4">
+                  <Button
+                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                    onClick={submitGroupUpdate}
+                    disabled={isUpdating}
+                  >
+                    {isUpdating ? "Updating..." : "Update"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setEditBCCGroup(null)}
+                    disabled={isUpdating}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
             )}
 
             <DataTable
