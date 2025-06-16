@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Users } from "lucide-react";
+import { Users, User } from "lucide-react";
 
 // make the background image work
 
@@ -69,6 +69,27 @@ const Layout = ({ children }) => {
                 }`}
               >
                 Transactions
+              </Link>
+              <Link
+                to="/admin"
+                className={`transition-colors ${
+                  location.pathname.includes("/admin")
+                    ? "text-amber-200 font-semibold"
+                    : "hover:text-amber-200"
+                }`}
+              >
+                Admin
+              </Link>
+              <Link
+                to="/profile"
+                className={`transition-colors flex items-center space-x-1 ${
+                  location.pathname.includes("/profile")
+                    ? "text-amber-200 font-semibold"
+                    : "hover:text-amber-200"
+                }`}
+              >
+                <User className="h-4 w-4" />
+                <span>Profile</span>
               </Link>
             </nav>
           </div>

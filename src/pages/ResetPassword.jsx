@@ -1,139 +1,161 @@
-"use client"
-
-import { useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
-import { Button } from "../components/ui/Button"
-import { Input } from "../components/ui/Input"
-import { Label } from "../components/ui/Label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/Card"
-import { useToaster } from "../components/Toaster"
-import { Users, Lock, ChevronLeft } from "lucide-react"
-
-// do not touch this for now
+import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Key, Check, AlertCircle } from "lucide-react";
 
 const ResetPassword = () => {
-  const [formData, setFormData] = useState({
-    newPassword: "",
-    confirmPassword: "",
-  })
-  const [isLoading, setIsLoading] = useState(false)
-  const navigate = useNavigate()
-  const { success, error } = useToaster()
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Extract token from URL query parameters
+  const queryParams = new URLSearchParams(location.search);
+  const token = queryParams.get("token");
+  const email = queryParams.get("email");
 
-  const handleInputChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-
-    if (formData.newPassword !== formData.confirmPassword) {
-      error("Passwords do not match.")
-      return
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setError("");
+    
+    // Validation
+    if (!password || !confirmPassword) {
+      setError("Please fill in all fields");
+      return;
     }
-
-    if (formData.newPassword.length < 6) {
-      error("Password must be at least 6 characters long.")
-      return
+    
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
     }
-
-    setIsLoading(true)
-
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      success("Password reset successfully! You can now login with your new password.")
-      setTimeout(() => {
-        navigate("/login")
-      }, 2000)
-    } catch (err) {
-      error("Failed to reset password. Please try again.")
-    } finally {
-      setIsLoading(false)
+    
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
     }
-  }
+    
+    // Simulate password reset success
+    // In a real app, this would make an API call using the token
+    setSuccess(true);
+    
+    // Redirect to login after 2 seconds
+    setTimeout(() => {
+      navigate("/login");
+    }, 2000);
+  };
+
+  // Mock validation of token
+  const isValidToken = !!token && !!email;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 flex items-center justify-center p-4">
-      {/* Background overlay */}
-      <div
-        className="fixed inset-0 opacity-5 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: `url('/placeholder.svg?height=1080&width=1920')`,
-        }}
-      />
-
-      <div className="relative w-full max-w-md">
-        <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-amber-200">
-          <CardHeader className="text-center bg-gradient-to-r from-amber-100 to-orange-100 border-b border-amber-200">
-            <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Users className="w-8 h-8 text-white" />
+      <div className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat opacity-20" 
+        style={{ backgroundImage: `url('/assets/church-bg.jpg')` }} />
+      
+      <div className="max-w-md w-full bg-white rounded-lg shadow-xl overflow-hidden z-10">
+        <div className="bg-gradient-to-r from-amber-800 via-orange-800 to-red-800 py-6 px-6 text-white">
+          <h2 className="text-2xl font-bold text-center">Risen Christ Church</h2>
+          <p className="text-amber-100 text-center">Reset Password</p>
+        </div>
+        
+        <div className="p-6">
+          {!isValidToken ? (
+            <div className="text-center py-8">
+              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-xl font-medium text-gray-900 mb-2">Invalid or Expired Link</h3>
+              <p className="text-gray-600 mb-6">
+                This password reset link is invalid or has expired.
+              </p>
+              <button
+                onClick={() => navigate("/login")}
+                className="px-4 py-2 bg-gradient-to-r from-amber-600 to-red-600 text-white rounded-md hover:from-amber-700 hover:to-red-700 transition"
+              >
+                Return to Login
+              </button>
             </div>
-            <CardTitle className="text-2xl text-amber-900">Reset Password</CardTitle>
-            <CardDescription className="text-amber-700">Create a new password for your account</CardDescription>
-          </CardHeader>
-          <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="newPassword" className="text-amber-900">
-                  New Password
-                </Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-amber-500 w-4 h-4" />
-                  <Input
-                    id="newPassword"
-                    name="newPassword"
-                    type="password"
-                    placeholder="Enter your new password"
-                    value={formData.newPassword}
-                    onChange={handleInputChange}
-                    className="pl-10 border-amber-300 focus:border-amber-500 focus:ring-amber-500"
-                    required
-                  />
-                </div>
+          ) : success ? (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Check className="w-8 h-8 text-green-600" />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword" className="text-amber-900">
-                  Confirm New Password
-                </Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-amber-500 w-4 h-4" />
-                  <Input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    placeholder="Confirm your new password"
-                    value={formData.confirmPassword}
-                    onChange={handleInputChange}
-                    className="pl-10 border-amber-300 focus:border-amber-500 focus:ring-amber-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={isLoading}>
-                {isLoading ? "Resetting Password..." : "Reset Password"}
-              </Button>
-            </form>
-
-            <div className="mt-6">
-              <Link to="/login">
-                <Button variant="outline" className="w-full border-amber-300 text-amber-700 hover:bg-amber-50">
-                  <ChevronLeft className="w-4 h-4 mr-2" />
-                  Back to Login
-                </Button>
-              </Link>
+              <h3 className="text-xl font-medium text-gray-900 mb-2">Password Reset Successful</h3>
+              <p className="text-gray-600">
+                Your password has been reset successfully. Redirecting to login...
+              </p>
             </div>
-          </CardContent>
-        </Card>
+          ) : (
+            <>
+              <h3 className="text-xl font-medium text-gray-900 mb-6 text-center">Create New Password</h3>
+              
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                  <p>{error}</p>
+                </div>
+              )}
+              
+              <div className="mb-6 p-4 bg-amber-50 border border-amber-100 rounded-md">
+                <p className="text-sm text-amber-800">
+                  Resetting password for: <strong>{email}</strong>
+                </p>
+              </div>
+              
+              <form onSubmit={handleSubmit}>
+                <div className="mb-4">
+                  <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="password">
+                    New Password
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Key className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      id="password"
+                      type="password"
+                      className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Must be at least 6 characters
+                  </p>
+                </div>
+                
+                <div className="mb-6">
+                  <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="confirm-password">
+                    Confirm New Password
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Key className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      id="confirm-password"
+                      type="password"
+                      className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                      placeholder="••••••••"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                  </div>
+                </div>
+                
+                <button
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-amber-700 to-red-700 text-white py-2 px-4 rounded-md hover:from-amber-800 hover:to-red-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 transition-colors"
+                >
+                  Reset Password
+                </button>
+              </form>
+            </>
+          )}
+        </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default ResetPassword
+export default ResetPassword;
