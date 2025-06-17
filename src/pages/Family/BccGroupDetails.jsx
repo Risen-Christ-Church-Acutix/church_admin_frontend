@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useParams, useNavigate } from "react-router-dom";
@@ -10,7 +11,6 @@ import { useToaster } from "../../components/Toaster";
 import { ChevronLeft, Plus, Phone, MapPin } from "lucide-react";
 import axiosInstance from "../../api-handler/api-handler";
 import AddFamilyModal from "./AddFamilyModal";
-
 
 const BccGroupDetails = () => {
   const { groupId } = useParams();
@@ -25,7 +25,6 @@ const BccGroupDetails = () => {
   const [editAddress, setEditAddress] = useState("");
   const [editPhoneNumber, setEditPhoneNumber] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
-  // State for edit group form
   const [showEditGroupForm, setShowEditGroupForm] = useState(false);
   const [editGroupName, setEditGroupName] = useState("");
   const [editGroupArea, setEditGroupArea] = useState("");
@@ -57,7 +56,6 @@ const BccGroupDetails = () => {
         return;
       }
 
-      // Set group data from response
       setGroupData({
         id: response.data.id,
         name: response.data.name,
@@ -65,7 +63,6 @@ const BccGroupDetails = () => {
         familyCount: response.data.familycount,
       });
 
-      // Transform family data
       const transformedData = response.data.families.map((family) => ({
         id: family.id,
         name: `${family.name} 's family`,
@@ -93,19 +90,18 @@ const BccGroupDetails = () => {
     fetchGroupAndFamilies();
   }, [groupId]);
 
-  const openFamilyDetails = (id) => {
-    const currentFamily = familiesData.find((fam) => fam.id === id);
-    if (!currentFamily) {
-      error("Family not found.");
+  const handleViewFamily = (family) => {
+    if (!family?.id || !groupData?.name) {
+      error("Cannot view family: Invalid family or group data.");
       return;
     }
-    navigate(`/parishioners/families/${id}`, {
-      state: { groupId, groupName: groupData?.name || "Unknown Group", currentFamily },
+    navigate(`/parishioners/families/${family.id}`, {
+      state: { groupId, groupName: groupData.name, currentFamily: family },
     });
   };
 
   const familyColumns = [
-    { key: "name", header: "Family Name" }, // Using placeholder name
+    { key: "name", header: "Family Name" },
     {
       key: "contact",
       header: "Contact",
@@ -126,7 +122,7 @@ const BccGroupDetails = () => {
       render: (value, item) => (
         <span
           className="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer hover:underline"
-          onClick={() => openFamilyDetails(item.id)}
+          onClick={() => handleViewFamily(item)}
         >
           {value}
         </span>
@@ -169,22 +165,15 @@ const BccGroupDetails = () => {
     }
   };
 
-  const handleViewFamily = (family) => {
-    navigate(`/parishioners/families/${family.id}`, { state: { groupId } });
-  };
-
   const handleDeleteFamily = async (family) => {
     const reason = prompt(`Why are you inactivating "Family ID: ${family.id}"?`);
-
     if (reason === null) return;
-
     if (!reason || reason.trim() === "") {
       error("Inactivity reason is required.");
       return;
     }
 
     const confirmed = window.confirm(`Are you sure you want to inactivate "Family ID: ${family.id}"?`);
-
     if (!confirmed) return;
 
     try {
@@ -205,23 +194,17 @@ const BccGroupDetails = () => {
     }
   };
 
-  // Handler to open edit group form
   const handleEditGroup = () => {
-    console.log("Edit Group button clicked, groupData:", groupData); // Debug log
     if (!groupData) {
-      console.log("No groupData available");
       error("Group data not available.");
       return;
     }
     setEditGroupName(groupData.name || "");
     setEditGroupArea(groupData.area || "");
     setShowEditGroupForm(true);
-    console.log("showEditGroupForm set to true"); // Debug log
   };
 
-  // Handler to submit group update
   const submitGroupUpdate = async () => {
-    console.log("Submitting group update:", { id: groupId, name: editGroupName, area: editGroupArea }); // Debug log
     if (!editGroupName.trim() || !editGroupArea.trim()) {
       error("Group name and area cannot be empty.");
       return;
@@ -340,10 +323,7 @@ const BccGroupDetails = () => {
                 <Button
                   variant="outline"
                   className="border-amber-300 text-amber-700 hover:bg-amber-100"
-                  onClick={() => {
-                    console.log("Cancel button clicked, closing form"); // Debug log
-                    setShowEditGroupForm(false);
-                  }}
+                  onClick={() => setShowEditGroupForm(false)}
                   disabled={isUpdatingGroup}
                 >
                   Cancel
@@ -435,7 +415,7 @@ const BccGroupDetails = () => {
                 columns={familyColumns}
                 searchPlaceholder="Search families by name or address..."
                 onEdit={handleEditFamily}
-                onView={handleViewFamily}
+                onView={(family) => handleViewFamily(family)}
                 onDelete={handleDeleteFamily}
               />
             )}
