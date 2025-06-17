@@ -1,18 +1,18 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Button } from "../components/ui/Button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/Card";
-import { Badge } from "../components/ui/Badge";
-import { Input } from "../components/ui/Input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/Select";
-import DataTable from "../components/DataTable";
-import Layout from "../components/Layout";
-import { useToaster } from "../components/Toaster";
+import { Button } from "../../components/ui/Button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/Card";
+import { Badge } from "../../components/ui/Badge";
+import { Input } from "../../components/ui/Input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/Select";
+import DataTable from "../../components/DataTable";
+import Layout from "../../components/Layout";
+import { useToaster } from "../../components/Toaster";
 import { Plus, Filter, Download, FileText, Calendar, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
 import AddTransactionForm from "./AddTransactionForm";
 import UpdateTransactionForm from "./UpdateTransactionForm"; // Added import
-import axiosInstance from "../api-handler/api-handler";
+import axiosInstance from "../../api-handler/api-handler";
 
 const Transactions = () => {
   const { success, error } = useToaster();

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useParams, useNavigate } from "react-router-dom";
@@ -24,6 +25,10 @@ const BccGroupDetails = () => {
   const [editAddress, setEditAddress] = useState("");
   const [editPhoneNumber, setEditPhoneNumber] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showEditGroupForm, setShowEditGroupForm] = useState(false);
+  const [editGroupName, setEditGroupName] = useState("");
+  const [editGroupArea, setEditGroupArea] = useState("");
+  const [isUpdatingGroup, setIsUpdatingGroup] = useState(false);
 
   const fetchGroupAndFamilies = async () => {
     try {
@@ -51,7 +56,6 @@ const BccGroupDetails = () => {
         return;
       }
 
-      // Set group data from response
       setGroupData({
         id: response.data.id,
         name: response.data.name,
@@ -59,10 +63,9 @@ const BccGroupDetails = () => {
         familyCount: response.data.familycount,
       });
 
-      // Transform family data
       const transformedData = response.data.families.map((family) => ({
         id: family.id,
-        name: `Family ID: ${family.id}`, // Placeholder since parishioners[0].name is not available
+        name: `${family.name} 's family`,
         address: family.address,
         phone: family.phoneNumber,
         memberCount: family.memberCount,
@@ -87,19 +90,18 @@ const BccGroupDetails = () => {
     fetchGroupAndFamilies();
   }, [groupId]);
 
-  const openFamilyDetails = (item) => {
-    const currentFamily = familiesData.find((fam) => fam.id === item.id);
-    if (!currentFamily) {
-      error("Family not found.");
+  const handleViewFamily = (family) => {
+    if (!family?.id || !groupData?.name) {
+      error("Cannot view family: Invalid family or group data.");
       return;
     }
-    navigate(`/parishioners/families/${item.id}`, {
-      state: { groupId, groupName: groupData?.name || "Unknown Group", currentFamily },
+    navigate(`/parishioners/families/${family.id}`, {
+      state: { groupId, groupName: groupData.name, currentFamily: family },
     });
   };
 
   const familyColumns = [
-    { key: "name", header: "Family Name" }, // Using placeholder name
+    { key: "name", header: "Family Name" },
     {
       key: "contact",
       header: "Contact",
@@ -120,7 +122,7 @@ const BccGroupDetails = () => {
       render: (value, item) => (
         <span
           className="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer hover:underline"
-          onClick={() => openFamilyDetails(item.id)}
+          onClick={() => handleViewFamily(item)}
         >
           {value}
         </span>
@@ -163,22 +165,15 @@ const BccGroupDetails = () => {
     }
   };
 
-  const handleViewFamily = (family) => {
-    navigate(`/parishioners/families/${family.id}`, { state: { groupId } });
-  };
-
   const handleDeleteFamily = async (family) => {
     const reason = prompt(`Why are you inactivating "Family ID: ${family.id}"?`);
-
     if (reason === null) return;
-
     if (!reason || reason.trim() === "") {
       error("Inactivity reason is required.");
       return;
     }
 
     const confirmed = window.confirm(`Are you sure you want to inactivate "Family ID: ${family.id}"?`);
-
     if (!confirmed) return;
 
     try {
@@ -196,6 +191,45 @@ const BccGroupDetails = () => {
       }
     } catch (err) {
       error(err.response?.data?.message || "Something went wrong.");
+    }
+  };
+
+  const handleEditGroup = () => {
+    if (!groupData) {
+      error("Group data not available.");
+      return;
+    }
+    setEditGroupName(groupData.name || "");
+    setEditGroupArea(groupData.area || "");
+    setShowEditGroupForm(true);
+  };
+
+  const submitGroupUpdate = async () => {
+    if (!editGroupName.trim() || !editGroupArea.trim()) {
+      error("Group name and area cannot be empty.");
+      return;
+    }
+
+    setIsUpdatingGroup(true);
+    try {
+      const response = await axiosInstance.put("/api/parishioners/updateBCCGroup", {
+        id: Number.parseInt(groupId),
+        name: editGroupName,
+        area: editGroupArea,
+      });
+
+      if (response.status === 200) {
+        success(`Group updated successfully.`);
+        setShowEditGroupForm(false);
+        fetchGroupAndFamilies();
+      } else {
+        error("Failed to update group.");
+      }
+    } catch (err) {
+      error(err.response?.data?.message || "Error updating group.");
+      console.error(err);
+    } finally {
+      setIsUpdatingGroup(false);
     }
   };
 
@@ -222,7 +256,10 @@ const BccGroupDetails = () => {
                 <CardTitle className="text-amber-900 text-2xl">{groupData?.name || "Loading..."}</CardTitle>
                 <CardDescription className="text-amber-700">BCC Group Details</CardDescription>
               </div>
-              <Button className="bg-amber-600 hover:bg-amber-700 text-white">
+              <Button
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+                onClick={handleEditGroup}
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Edit Group
               </Button>
@@ -249,6 +286,52 @@ const BccGroupDetails = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Edit Group Form */}
+        {showEditGroupForm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl border-2 border-red-500 max-w-md w-full">
+              <h3 className="text-amber-900 text-lg mb-4">Edit Group</h3>
+              <div className="mb-4">
+                <label className="block text-amber-700 mb-1">Group Name</label>
+                <input
+                  type="text"
+                  value={editGroupName}
+                  onChange={(e) => setEditGroupName(e.target.value)}
+                  className="w-full border border-amber-300 rounded px-3 py-2"
+                  placeholder="Enter group name"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-amber-700 mb-1">Area</label>
+                <input
+                  type="text"
+                  value={editGroupArea}
+                  onChange={(e) => setEditGroupArea(e.target.value)}
+                  className="w-full border border-amber-300 rounded px-3 py-2"
+                  placeholder="Enter area"
+                />
+              </div>
+              <div className="flex space-x-4">
+                <Button
+                  className="bg-amber-600 hover:bg-amber-700 text-white"
+                  onClick={submitGroupUpdate}
+                  disabled={isUpdatingGroup}
+                >
+                  {isUpdatingGroup ? "Updating..." : "Update"}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                  onClick={() => setShowEditGroupForm(false)}
+                  disabled={isUpdatingGroup}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Families Section */}
         <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-amber-200">
@@ -332,7 +415,7 @@ const BccGroupDetails = () => {
                 columns={familyColumns}
                 searchPlaceholder="Search families by name or address..."
                 onEdit={handleEditFamily}
-                onView={openFamilyDetails}
+                onView={(family) => handleViewFamily(family)}
                 onDelete={handleDeleteFamily}
               />
             )}

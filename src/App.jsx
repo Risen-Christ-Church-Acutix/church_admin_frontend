@@ -10,7 +10,7 @@ import BccGroupDetails from "./pages/Family/BccGroupDetails";
 import FamilyDetails from "./pages/FamilyMembers/FamilyDetails";
 import SacramentRecords from "./pages/SacramentRecords";
 import Events from "./pages/Events/Events";
-import Transactions from "./pages/Transactions";
+import Transactions from "./pages/Transactions/Transactions";
 import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/AdminDashboard";
 

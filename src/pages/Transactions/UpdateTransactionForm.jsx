@@ -2,11 +2,11 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/Select";
-import { useToaster } from "../components/Toaster";
-import axiosInstance from "../api-handler/api-handler";
+import { Button } from "../../components/ui/Button";
+import { Input } from "../../components/ui/Input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/Select";
+import { useToaster } from "../../components/Toaster";
+import axiosInstance from "../../api-handler/api-handler";
 
 const UpdateTransactionForm = ({ onClose, onSuccess, transaction = null }) => {
   const { success, error } = useToaster();
