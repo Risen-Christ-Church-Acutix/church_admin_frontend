@@ -360,7 +360,7 @@ const FamilyDetails = () => {
                     <option value="FIRST_COMMUNION">First Communion</option>
                     <option value="CONFIRMATION">Confirmation</option>
                     <option value="MARRIAGE">Marriage</option>
-                    <option value="DEATH">Death</option>
+                    <option value="FUNERAL">Funeral</option>
                   </select>
                 </div>
 
