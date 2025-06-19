@@ -66,8 +66,10 @@ const ParishionerManagement = () => {
     } else {
       if (window.confirm(`Are you sure you want to delete ${group.name}?`)) {
         try {
-          await axiosInstance.delete("/api/parishioners/deleteBCCGroup",{
-            id:group.id
+          await axiosInstance.delete("/api/parishioners/deleteBCCGroup", {
+            data: {
+              id: group.id
+            }
           });
           success(`${group.name} has been deleted successfully.`);
           fetchData();
