@@ -11,8 +11,10 @@ import Layout from "../../components/Layout";
 import { useToaster } from "../../components/Toaster";
 import { Plus, Filter, Download, FileText, Calendar, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
 import AddTransactionForm from "./AddTransactionForm";
-import UpdateTransactionForm from "./UpdateTransactionForm"; // Added import
+import UpdateTransactionForm from "./UpdateTransactionForm";
 import axiosInstance from "../../api-handler/api-handler";
+import GeneratePDFModal from "./GeneratePDF";
+import GenerateExcelModal from "./GenerateExcel";
 
 const Transactions = () => {
   const { success, error } = useToaster();
@@ -26,9 +28,25 @@ const Transactions = () => {
     period: "",
   });
   const [showForm, setShowForm] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState(null); // Added state
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const getDateRangeDisplay = () => {
+    if (!filters.dateFrom && !filters.dateTo && !filters.period) return "All dates";
+    if (filters.period) {
+      const today = new Date();
+      let dateFrom = new Date(today);
+      if (filters.period === "1_MONTH") dateFrom.setMonth(today.getMonth() - 1);
+      else if (filters.period === "3_MONTHS") dateFrom.setMonth(today.getMonth() - 3);
+      else if (filters.period === "6_MONTHS") dateFrom.setMonth(today.getMonth() - 6);
+      else if (filters.period === "12_MONTHS") dateFrom.setFullYear(today.getFullYear() - 1);
+      return `${dateFrom.toLocaleDateString()} to ${today.toLocaleDateString()}`;
+    }
+    const from = filters.dateFrom ? new Date(filters.dateFrom).toLocaleDateString() : "Start";
+    const to = filters.dateTo ? new Date(filters.dateTo).toLocaleDateString() : "End";
+    return `${from} to ${to}`;
+  };
 
   const fetchTransactions = useCallback(async () => {
     try {
@@ -131,6 +149,8 @@ const Transactions = () => {
           dateFrom.setMonth(today.getMonth() - 3);
         } else if (value === "6_MONTHS") {
           dateFrom.setMonth(today.getMonth() - 6);
+        } else if (value === "12_MONTHS") {
+          dateFrom.setFullYear(today.getFullYear() - 1);
         }
 
         newFilters.dateFrom = dateFrom.toISOString().split("T")[0];
@@ -175,14 +195,6 @@ const Transactions = () => {
         error("Failed to delete transaction");
       }
     }
-  };
-
-  const handleGeneratePDFReport = () => {
-    success("PDF report generation will be implemented");
-  };
-
-  const handleGenerateExcelReport = () => {
-    success("Excel report generation will be implemented");
   };
 
   const handleAddTransactionSuccess = useCallback(async () => {
@@ -318,6 +330,9 @@ const Transactions = () => {
                   <Filter className="w-5 h-5 mr-2" />
                   Filters & Actions
                 </CardTitle>
+                <CardDescription className="text-amber-700 mt-1">
+                  Date Range: {getDateRangeDisplay()}
+                </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
@@ -371,6 +386,7 @@ const Transactions = () => {
                       <SelectItem value="1_MONTH">Last 1 Month</SelectItem>
                       <SelectItem value="3_MONTHS">Last 3 Months</SelectItem>
                       <SelectItem value="6_MONTHS">Last 6 Months</SelectItem>
+                      <SelectItem value="12_MONTHS">Last 12 Months</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -418,22 +434,28 @@ const Transactions = () => {
                   <Button variant="outline" onClick={clearFilters} className="border-amber-300 text-amber-700">
                     Clear Filters
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleGeneratePDFReport}
-                    className="border-red-300 text-red-700 hover:bg-red-50"
-                  >
-                    <FileText className="w-4 h-4 mr-2" />
-                    Generate PDF
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleGenerateExcelReport}
-                    className="border-green-300 text-green-700 hover:bg-green-50"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Generate Excel
-                  </Button>
+                  <GeneratePDFModal
+                    transactions={filteredTransactions}
+                    filters={filters}
+                    buttonContent={
+                      <>
+                        <FileText className="w-4 h-4 mr-2" />
+                        Generate PDF
+                      </>
+                    }
+                    buttonClassName="border-red-300 text-red-700 hover:bg-red-50"
+                  />
+                  <GenerateExcelModal
+                    transactions={filteredTransactions}
+                    filters={filters}
+                    buttonContent={
+                      <>
+                        <Download className="w-4 h-4 mr-2" />
+                        Generate Excel
+                      </>
+                    }
+                    buttonClassName="border-green-300 text-green-700 hover:bg-green-50"
+                  />
                 </div>
               </CardContent>
             </Card>
