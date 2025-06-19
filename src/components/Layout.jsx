@@ -1,11 +1,13 @@
 import { Link, useLocation } from "react-router-dom";
 import { Users, User } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 // make the background image work
 
 const Layout = ({ children }) => {
   const location = useLocation();
-
+  const {user}=useAuth();
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50">
       {/* Background overlay with church imagery */}
@@ -70,7 +72,7 @@ const Layout = ({ children }) => {
               >
                 Transactions
               </Link>
-              <Link
+              {user.role==="ADMIN" && <Link
                 to="/admin"
                 className={`transition-colors ${
                   location.pathname.includes("/admin")
@@ -79,7 +81,8 @@ const Layout = ({ children }) => {
                 }`}
               >
                 Admin
-              </Link>
+              </Link>}
+              
               <Link
                 to="/profile"
                 className={`transition-colors flex items-center space-x-1 ${

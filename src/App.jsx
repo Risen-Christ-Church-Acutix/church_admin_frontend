@@ -13,15 +13,15 @@ import Events from "./pages/Events/Events";
 import Transactions from "./pages/Transactions/Transactions";
 import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/AdminDashboard";
+import AccessDenied from "./pages/AccessDenied";
 
-// Route guard component
-const ProtectedRoute = ({ children }) => {
-  const { isLoggedIn } = useAuth();
-  
-  if (!isLoggedIn) {
-    return <Navigate to="/login" replace />;
-  }
-  
+const ProtectedRoute = ({ children, requiredRole }) => {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  if (requiredRole && user.role !== requiredRole) return <Navigate to="/unauthorized" replace />;
+
   return children;
 };
 
@@ -39,6 +39,7 @@ function AppRoutes() {
 
       {/* Protected Routes */}
       <Route path="/" element={<Navigate to="/parishioners" replace />} />
+      <Route path="/forbidden" element={<AccessDenied/>} />
       
       <Route path="/parishioners" element={
         <ProtectedRoute>

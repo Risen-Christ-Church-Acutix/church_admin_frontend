@@ -1,10 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Layout from "../components/Layout";
-import { useAuth } from "../context/AuthContext";
-import { Users, UserPlus, Edit, Trash2, Key, Search, Filter, Shield, X, AlertCircle } from "lucide-react";
+import axiosInstance from "../api-handler/api-handler";
+import {
+  Users,
+  UserPlus,
+  Edit,
+  Trash2,
+  Key,
+  Search,
+  Filter,
+  Shield,
+  X,
+  AlertCircle,
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const AdminDashboard = () => {
-  const { users, currentUser, addUser, updateUser, deleteUser } = useAuth();
+  const [users, setUsers] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -12,194 +25,191 @@ const AdminDashboard = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
-
-  // Form states
+  const [loading, setLoading] = useState(false);
+  const navigate=useNavigate();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
-    role: "staff"
+    role: "ACCOUNTANT",
   });
   const [passwordData, setPasswordData] = useState({
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
   });
   const [formError, setFormError] = useState("");
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [usersRes, currentUserRes] = await Promise.all([
+        axiosInstance.get("/api/admin/users"),
+        axiosInstance.get("/api/admin/current"),
+      ]);
+      
+      setUsers(usersRes.data);
+      setCurrentUser(currentUserRes.data);
+    } catch (err) {
+      if(err.response.data.message==="Forbidden"){
+        navigate("/forbidden");
+      }
+      console.error("Error fetching data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Admin statistics
-  const adminCount = users.filter(user => user.role === "admin").length;
-  const staffCount = users.filter(user => user.role === "staff").length;
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-  // Filter and search users
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = 
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const adminCount = users.filter((u) => u.role === "ADMIN").length;
+  const staffCount = users.filter((u) => u.role !== "ADMIN").length;
+
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch =
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
-    
+
     return matchesSearch && matchesRole;
   });
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
-    setPasswordData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setPasswordData((prev) => ({ ...prev, [name]: value }));
   };
 
   const resetFormData = () => {
-    setFormData({
-      name: "",
-      email: "",
-      password: "",
-      role: "staff"
-    });
-    setPasswordData({
-      password: "",
-      confirmPassword: ""
-    });
+    setFormData({ name: "", email: "", password: "", role: "" });
+    setPasswordData({ password: "", confirmPassword: "" });
     setFormError("");
   };
 
-  const handleAddUser = (e) => {
+  const handleAddUser = async (e) => {
     e.preventDefault();
     setFormError("");
-    
-    // Validation
-    if (!formData.name || !formData.email || !formData.password) {
-      setFormError("All fields are required");
-      return;
+    if (!formData.name || !formData.email || !formData.password)
+      return setFormError("All fields are required");
+    if (formData.password.length < 6)
+      return setFormError("Password must be at least 6 characters");
+    const emailExists = users.some(
+      (u) => u.email.toLowerCase() === formData.email.toLowerCase()
+    );
+    if (emailExists)
+      return setFormError("A user with this email already exists");
+    try {
+      const res = await axiosInstance.post("/api/admin/users", formData);
+      setUsers((prev) => [...prev, res.data]);
+      setShowAddModal(false);
+      resetFormData();
+    } catch (err) {
+      setFormError("Failed to add user");
     }
-    
-    if (formData.password.length < 6) {
-      setFormError("Password must be at least 6 characters");
-      return;
-    }
-    
-    // Check if email already exists
-    if (users.some(user => user.email.toLowerCase() === formData.email.toLowerCase())) {
-      setFormError("A user with this email already exists");
-      return;
-    }
-    
-    // Add new user
-    addUser(formData);
-    setShowAddModal(false);
-    resetFormData();
   };
 
-  const handleEditUser = (e) => {
+  const handleEditUser = async (e) => {
     e.preventDefault();
     setFormError("");
-    
-    if (!formData.name || !formData.email) {
-      setFormError("Name and email are required");
-      return;
+    if (!formData.name || !formData.email)
+      return setFormError("Name and email are required");
+    const emailExists = users.some(
+      (u) =>
+        u.id !== selectedUser.id &&
+        u.email.toLowerCase() === formData.email.toLowerCase()
+    );
+    if (emailExists)
+      return setFormError("A user with this email already exists");
+    try {
+      const res = await axiosInstance.put(
+        `/api/admin/users/${selectedUser.id}`,
+        { name: formData.name, email: formData.email, role: formData.role }
+      );
+      setUsers((prev) =>
+        prev.map((u) => (u.id === selectedUser.id ? res.data : u))
+      );
+      setShowEditModal(false);
+      resetFormData();
+    } catch {
+      setFormError("Failed to update user");
     }
-    
-    // Check if email already exists for other users
-    if (users.some(user => 
-      user.id !== selectedUser.id && 
-      user.email.toLowerCase() === formData.email.toLowerCase()
-    )) {
-      setFormError("A user with this email already exists");
-      return;
-    }
-    
-    updateUser(selectedUser.id, {
-      name: formData.name,
-      email: formData.email,
-      role: formData.role
-    });
-    
-    setShowEditModal(false);
-    resetFormData();
   };
 
-  const handleUpdatePassword = (e) => {
+  const handleUpdatePassword = async (e) => {
     e.preventDefault();
     setFormError("");
-    
-    if (!passwordData.password) {
-      setFormError("Password is required");
-      return;
+    if (!passwordData.password) return setFormError("Password is required");
+    if (passwordData.password.length < 6)
+      return setFormError("Password must be at least 6 characters");
+    if (passwordData.password !== passwordData.confirmPassword)
+      return setFormError("Passwords do not match");
+    try {
+      await axiosInstance.put(`/api/admin/users/${selectedUser.id}/password`, {
+        password: passwordData.password,
+      });
+      setShowPasswordModal(false);
+      resetFormData();
+    } catch {
+      setFormError("Failed to update password");
     }
-    
-    if (passwordData.password.length < 6) {
-      setFormError("Password must be at least 6 characters");
-      return;
-    }
-    
-    if (passwordData.password !== passwordData.confirmPassword) {
-      setFormError("Passwords do not match");
-      return;
-    }
-    
-    updateUser(selectedUser.id, { password: passwordData.password });
-    setShowPasswordModal(false);
-    resetFormData();
   };
 
-  const handleDeleteUser = () => {
-    // Prevent deleting yourself
-    if (selectedUser.id === currentUser.id) {
-      setFormError("You cannot delete your own account");
-      return;
+  const handleDeleteUser = async () => {
+    if (!selectedUser || !currentUser) return;
+    if (selectedUser.id === currentUser.id)
+      return setFormError("You cannot delete your own account");
+    try {
+      await axiosInstance.delete(`/api/admin/users/${selectedUser.id}`);
+      setUsers((prev) => prev.filter((u) => u.id !== selectedUser.id));
+      setShowDeleteModal(false);
+    } catch {
+      setFormError("Failed to delete user");
     }
-    
-    deleteUser(selectedUser.id);
-    setShowDeleteModal(false);
+  };
+
+  const handleBackdropClick = (setter) => (e) => {
+    if (e.target === e.currentTarget) setter(false);
   };
 
   const openEditModal = (user) => {
+    console.log(user);
     setSelectedUser(user);
-    setFormData({
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      password: ""
-    });
+    setFormData({ name: user.name, email: user.email, role: user.role });
     setShowEditModal(true);
   };
-
+  const openDeleteModal = (user) => {
+    setSelectedUser(user);
+    setFormError("");
+    setShowDeleteModal(true);
+  };
   const openPasswordModal = (user) => {
     setSelectedUser(user);
-    setPasswordData({
-      password: "",
-      confirmPassword: ""
-    });
+    setPasswordData({ password: "", confirmPassword: "" });
+    setFormError("");
     setShowPasswordModal(true);
   };
 
-  const openDeleteModal = (user) => {
-    setSelectedUser(user);
-    setShowDeleteModal(true);
-  };
-
-  // Modal backdrop click handler
-  const handleBackdropClick = (setter) => {
-    return (e) => {
-      if (e.target === e.currentTarget) {
-        setter(false);
-      }
-    };
-  };
+  if (loading) {
+    return (
+      <Layout>
+        <div className="h-screen flex items-center justify-center">
+          <div className="text-center text-gray-600 text-xl">Loading...</div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
       <div className="container mx-auto px-6 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">User Administration</h1>
-        
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">
+          User Administration
+        </h1>
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
@@ -213,7 +223,7 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -225,7 +235,7 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -238,7 +248,7 @@ const AdminDashboard = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Filters and Actions */}
         <div className="bg-white rounded-lg shadow mb-8">
           <div className="p-6">
@@ -254,10 +264,10 @@ const AdminDashboard = () => {
                     placeholder="Search users..."
                     className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
                     value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
+                    onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                
+
                 {/* Role Filter */}
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -266,15 +276,18 @@ const AdminDashboard = () => {
                   <select
                     className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
                     value={roleFilter}
-                    onChange={e => setRoleFilter(e.target.value)}
+                    onChange={(e) => setRoleFilter(e.target.value)}
                   >
-                    <option value="all">All Roles</option>
-                    <option value="admin">Administrators</option>
-                    <option value="staff">Staff</option>
+                    <option value="all">All</option>
+                    <option value="ADMIN">Admin</option>
+                    <option value="PRIEST">Priest</option>
+                    <option value="SECRETARY">Secretary</option>
+                    <option value="CATECHIST">Catechist</option>
+                    <option value="ACCOUNTANT">Accountant</option>
                   </select>
                 </div>
               </div>
-              
+
               <button
                 onClick={() => {
                   resetFormData();
@@ -288,26 +301,41 @@ const AdminDashboard = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Users Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     Name
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     Email
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     Role
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     Password
                   </th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     Actions
                   </th>
                 </tr>
@@ -315,12 +343,15 @@ const AdminDashboard = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="px-6 py-4 text-center text-gray-500">
+                    <td
+                      colSpan="5"
+                      className="px-6 py-4 text-center text-gray-500"
+                    >
                       No users found
                     </td>
                   </tr>
                 ) : (
-                  filteredUsers.map(user => (
+                  filteredUsers.map((user) => (
                     <tr key={user.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -330,25 +361,33 @@ const AdminDashboard = () => {
                             </div>
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                            {user.id === currentUser.id && (
-                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-amber-100 text-amber-800">
-                                You
-                              </span>
+                            <div className="text-sm font-medium text-gray-900">
+                              {user.name}
+                            </div>
+                            {currentUser && user.id === currentUser.id && (
+                              <span className="...">You</span>
                             )}
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{user.email}</div>
+                        <div className="text-sm text-gray-900">
+                          {user.email}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          user.role === 'admin' 
-                            ? 'bg-red-100 text-red-800' 
-                            : 'bg-orange-100 text-orange-800'
-                        }`}>
-                          {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                        <span
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            {
+                              ADMIN: "bg-red-100 text-red-800",
+                              PRIEST: "bg-blue-100 text-blue-800",
+                              SECRETARY: "bg-green-100 text-green-800",
+                              CATECHIST: "bg-purple-100 text-purple-800",
+                              ACCOUNTANT: "bg-yellow-100 text-yellow-800",
+                            }[user.role] || "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {user.role}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -369,9 +408,11 @@ const AdminDashboard = () => {
                         <button
                           onClick={() => openDeleteModal(user)}
                           className={`text-red-600 hover:text-red-900 ${
-                            user.id === currentUser.id ? 'opacity-50 cursor-not-allowed' : ''
+                            user.id === currentUser.id
+                              ? "opacity-50 cursor-not-allowed"
+                              : ""
                           }`}
-                          disabled={user.id === currentUser.id}
+                          disabled={currentUser && user.id === currentUser.id}
                         >
                           <Trash2 className="h-5 w-5" />
                         </button>
@@ -387,18 +428,21 @@ const AdminDashboard = () => {
 
       {/* Add User Modal */}
       {showAddModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
           onClick={handleBackdropClick(setShowAddModal)}
         >
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
             <div className="flex justify-between items-center p-6 border-b">
               <h3 className="text-lg font-medium">Add New User</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-500">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="text-gray-400 hover:text-gray-500"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handleAddUser} className="p-6">
               {formError && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md flex items-start gap-2">
@@ -406,9 +450,12 @@ const AdminDashboard = () => {
                   <p>{formError}</p>
                 </div>
               )}
-              
+
               <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="name">
+                <label
+                  className="block text-gray-700 text-sm font-medium mb-2"
+                  htmlFor="name"
+                >
                   Full Name
                 </label>
                 <input
@@ -421,9 +468,12 @@ const AdminDashboard = () => {
                   placeholder="Enter full name"
                 />
               </div>
-              
+
               <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="email">
+                <label
+                  className="block text-gray-700 text-sm font-medium mb-2"
+                  htmlFor="email"
+                >
                   Email Address
                 </label>
                 <input
@@ -436,9 +486,12 @@ const AdminDashboard = () => {
                   placeholder="Enter email address"
                 />
               </div>
-              
+
               <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="password">
+                <label
+                  className="block text-gray-700 text-sm font-medium mb-2"
+                  htmlFor="password"
+                >
                   Password
                 </label>
                 <input
@@ -454,9 +507,12 @@ const AdminDashboard = () => {
                   Must be at least 6 characters
                 </p>
               </div>
-              
+
               <div className="mb-6">
-                <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="role">
+                <label
+                  className="block text-gray-700 text-sm font-medium mb-2"
+                  htmlFor="role"
+                >
                   Role
                 </label>
                 <select
@@ -466,11 +522,15 @@ const AdminDashboard = () => {
                   value={formData.role}
                   onChange={handleInputChange}
                 >
-                  <option value="staff">Staff</option>
-                  <option value="admin">Administrator</option>
+                  <option value="all">All Roles</option>
+                  <option value="ADMIN">Admin</option>
+                  <option value="PRIEST">Priest</option>
+                  <option value="SECRETARY">Secretary</option>
+                  <option value="CATECHIST">Catechist</option>
+                  <option value="ACCOUNTANT">Accountant</option>
                 </select>
               </div>
-              
+
               <div className="flex justify-end space-x-3">
                 <button
                   type="button"
@@ -493,18 +553,21 @@ const AdminDashboard = () => {
 
       {/* Edit User Modal */}
       {showEditModal && selectedUser && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
           onClick={handleBackdropClick(setShowEditModal)}
         >
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
             <div className="flex justify-between items-center p-6 border-b">
               <h3 className="text-lg font-medium">Edit User</h3>
-              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-500">
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-gray-400 hover:text-gray-500"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handleEditUser} className="p-6">
               {formError && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md flex items-start gap-2">
@@ -512,9 +575,12 @@ const AdminDashboard = () => {
                   <p>{formError}</p>
                 </div>
               )}
-              
+
               <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="edit-name">
+                <label
+                  className="block text-gray-700 text-sm font-medium mb-2"
+                  htmlFor="edit-name"
+                >
                   Full Name
                 </label>
                 <input
@@ -526,9 +592,12 @@ const AdminDashboard = () => {
                   onChange={handleInputChange}
                 />
               </div>
-              
+
               <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="edit-email">
+                <label
+                  className="block text-gray-700 text-sm font-medium mb-2"
+                  htmlFor="edit-email"
+                >
                   Email Address
                 </label>
                 <input
@@ -540,9 +609,12 @@ const AdminDashboard = () => {
                   onChange={handleInputChange}
                 />
               </div>
-              
+
               <div className="mb-6">
-                <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="edit-role">
+                <label
+                  className="block text-gray-700 text-sm font-medium mb-2"
+                  htmlFor="edit-role"
+                >
                   Role
                 </label>
                 <select
@@ -552,11 +624,14 @@ const AdminDashboard = () => {
                   value={formData.role}
                   onChange={handleInputChange}
                 >
-                  <option value="staff">Staff</option>
-                  <option value="admin">Administrator</option>
+                  <option value="ADMIN">Admin</option>
+                  <option value="PRIEST">Priest</option>
+                  <option value="SECRETARY">Secretary</option>
+                  <option value="CATECHIST">Catechist</option>
+                  <option value="ACCOUNTANT">Accountant</option>
                 </select>
               </div>
-              
+
               <div className="flex justify-end space-x-3">
                 <button
                   type="button"
@@ -579,31 +654,35 @@ const AdminDashboard = () => {
 
       {/* Password Modal */}
       {showPasswordModal && selectedUser && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
           onClick={handleBackdropClick(setShowPasswordModal)}
         >
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
             <div className="flex justify-between items-center p-6 border-b">
               <h3 className="text-lg font-medium">
-                {currentUser.id === selectedUser.id ? "Change Your Password" : `Change Password for ${selectedUser.name}`}
+                {currentUser &&
+                selectedUser &&
+                currentUser.id === selectedUser.id
+                  ? "Change Your Password"
+                  : `Change Password for ${selectedUser.name}`}
               </h3>
-              <button onClick={() => setShowPasswordModal(false)} className="text-gray-400 hover:text-gray-500">
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className="text-gray-400 hover:text-gray-500"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="p-6">
               {/* Current Password Display */}
               <div className="mb-6 p-4 bg-amber-50 border border-amber-100 rounded-md">
                 <p className="text-sm text-amber-800 mb-1">
                   User: <strong>{selectedUser.email}</strong>
                 </p>
-                <p className="text-sm text-amber-800 flex items-center">
-                  Current Password: <span className="font-mono bg-white px-2 py-1 rounded ml-2 border border-amber-200">{selectedUser.password}</span>
-                </p>
               </div>
-              
+
               <form onSubmit={handleUpdatePassword}>
                 {formError && (
                   <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md flex items-start gap-2">
@@ -611,9 +690,12 @@ const AdminDashboard = () => {
                     <p>{formError}</p>
                   </div>
                 )}
-                
+
                 <div className="mb-4">
-                  <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="new-password">
+                  <label
+                    className="block text-gray-700 text-sm font-medium mb-2"
+                    htmlFor="new-password"
+                  >
                     New Password
                   </label>
                   <input
@@ -629,9 +711,12 @@ const AdminDashboard = () => {
                     Must be at least 6 characters
                   </p>
                 </div>
-                
+
                 <div className="mb-6">
-                  <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="confirm-password">
+                  <label
+                    className="block text-gray-700 text-sm font-medium mb-2"
+                    htmlFor="confirm-password"
+                  >
                     Confirm New Password
                   </label>
                   <input
@@ -644,7 +729,7 @@ const AdminDashboard = () => {
                     placeholder="Confirm new password"
                   />
                 </div>
-                
+
                 <div className="flex justify-end space-x-3">
                   <button
                     type="button"
@@ -668,25 +753,28 @@ const AdminDashboard = () => {
 
       {/* Delete User Modal */}
       {showDeleteModal && selectedUser && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
           onClick={handleBackdropClick(setShowDeleteModal)}
         >
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
             <div className="flex justify-between items-center p-6 border-b">
               <h3 className="text-lg font-medium text-red-600">Delete User</h3>
-              <button onClick={() => setShowDeleteModal(false)} className="text-gray-400 hover:text-gray-500">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="text-gray-400 hover:text-gray-500"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="p-6">
               {formError && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
                   {formError}
                 </div>
               )}
-              
+
               <div className="mb-6">
                 <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
                 <p className="text-center text-gray-700 mb-1">
@@ -699,7 +787,7 @@ const AdminDashboard = () => {
                   This action cannot be undone.
                 </p>
               </div>
-              
+
               <div className="flex justify-end space-x-3">
                 <button
                   type="button"
@@ -712,7 +800,11 @@ const AdminDashboard = () => {
                   type="button"
                   onClick={handleDeleteUser}
                   className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                  disabled={selectedUser.id === currentUser.id}
+                  disabled={
+                    currentUser &&
+                    selectedUser &&
+                    selectedUser.id === currentUser.id
+                  }
                 >
                   Delete User
                 </button>

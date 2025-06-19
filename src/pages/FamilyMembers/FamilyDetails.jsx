@@ -16,8 +16,6 @@ import { ChevronLeft, Plus } from "lucide-react";
 import axiosInstance from "../../api-handler/api-handler";
 import { useEffect, useState } from "react";
 import AddParishionerModal from "./AddParishionerModal";
-import axios from "axios";
-
 const FamilyDetails = () => {
   const { familyId } = useParams();
   const location = useLocation();
@@ -43,16 +41,16 @@ const FamilyDetails = () => {
 
   useEffect(() => {
     fetchData();
-    setFamilyData({
+    setFamilyData((prev) => ({
+      ...prev,
       bccGroup: {
         id: groupId,
         name: groupName,
       },
       phone: currentFamily.phone,
       address: currentFamily.address,
-      familyHeadName: currentFamily.headOfFamily,
-    });
-    console.log(currentFamily);
+    }));
+
   }, []);
 
   const fetchData = async () => {
@@ -69,6 +67,7 @@ const FamilyDetails = () => {
 
       const members = res.data || [];
       const formatted = members.map((data, idx) => ({
+        sno:idx+1,
         id: data.id,
         name: data.name,
         dob: data.dateOfBirth,
@@ -76,10 +75,11 @@ const FamilyDetails = () => {
         sacraments: data.sacraments || [],
       }));
 
-      // const head = members.find(m => m.isFamilyHead);
+      const head = members.find(m => m.isFamilyHead);
 
       setFamilyData((prev) => ({
         ...prev,
+        familyHeadName:head.name,
         memberCount: members.length,
       }));
 
@@ -90,6 +90,7 @@ const FamilyDetails = () => {
   };
 
   const parishionerColumns = [
+    {key:"sno",header:"S.No"},
     { key: "name", header: "Name" },
     {
       key: "dob",
@@ -114,33 +115,37 @@ const FamilyDetails = () => {
         </Badge>
       ),
     },
-    {
-      key: "sacraments",
-      header: "Sacraments Done",
-      render: (value) => (
-        <div className="flex flex-wrap gap-1">
-          {value.map((sacrament, index) => (
-            <Badge
-              key={index}
-              variant="outline"
-              className={`text-xs ${
-                sacrament === "BAPTISM"
-                  ? "border-blue-300 text-blue-700"
-                  : sacrament === "FIRST_COMMUNION"
-                  ? "border-green-300 text-green-700"
-                  : sacrament === "CONFIRMATION"
-                  ? "border-purple-300 text-purple-700"
-                  : sacrament === "MARRIAGE"
-                  ? "border-red-300 text-red-700"
-                  : "border-gray-300 text-gray-700"
-              }`}
-            >
-              {sacrament.type}
-            </Badge>
-          ))}
-        </div>
-      ),
-    },
+{
+  key: "sacraments",
+  header: "Sacraments Done",
+  render: (value) =>
+    value.length === 0 ? (
+      <span className="text-gray-500 italic">No records found</span>
+    ) : (
+      <div className="flex flex-wrap gap-1">
+        {value.map((sacrament, index) => (
+          <Badge
+            key={index}
+            variant="outline"
+            className={`text-xs ${
+              sacrament.type === "BAPTISM"
+                ? "border-blue-300 text-blue-700"
+                : sacrament.type === "FIRST_COMMUNION"
+                ? "border-green-300 text-green-700"
+                : sacrament.type === "CONFIRMATION"
+                ? "border-purple-300 text-purple-700"
+                : sacrament.type === "MARRIAGE"
+                ? "border-red-300 text-red-700"
+                : "border-gray-300 text-gray-700"
+            }`}
+          >
+            {sacrament.type}
+          </Badge>
+        ))}
+      </div>
+    ),
+}
+
   ];
 
   const [editData, setEditData] = useState({});

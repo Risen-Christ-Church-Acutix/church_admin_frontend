@@ -10,7 +10,7 @@ const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async(e) => {
     e.preventDefault();
     setError("");
     
@@ -19,8 +19,8 @@ const Login = () => {
       return;
     }
     
-    const result = login(email, password);
-    
+    const result = await login(email, password);
+    console.log(result)
     if (result.success) {
       navigate("/parishioners");
     } else {

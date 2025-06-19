@@ -104,6 +104,7 @@ const ParishionerManagement = () => {
   };
 
   const bccGroupColumns = [
+    {key:"sno",header:"S.No",render: (value, item, index) => index + 1,},
     { key: "name", header: "Group Name" },
     { key: "area", header: "Area" },
     {
