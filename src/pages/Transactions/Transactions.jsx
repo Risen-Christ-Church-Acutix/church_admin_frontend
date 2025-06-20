@@ -65,14 +65,13 @@ const Transactions = () => {
         customCategory: t.customCategory || null,
       }));
       setTransactions(mappedTransactions);
-      success("Transactions fetched successfully");
     } catch (err) {
       error("Failed to fetch transactions");
       console.error(err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [error]);
 
   useEffect(() => {
     fetchTransactions();
@@ -89,8 +88,7 @@ const Transactions = () => {
             item.transactionType === "INCOME" ? "text-green-600" : "text-red-600"
           }`}
         >
-          <DollarSign className="w-3 h-3 mr-1" />
-          {value.toFixed(2)}
+          ₹{value.toFixed(2)}
         </div>
       ),
     },
@@ -288,7 +286,7 @@ const Transactions = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold mb-1">${totalIncome.toFixed(2)}</div>
+                  <div className="text-3xl font-bold mb-1">₹{totalIncome.toFixed(2)}</div>
                   <p className="text-green-100 text-sm">This period</p>
                 </CardContent>
               </Card>
@@ -301,7 +299,7 @@ const Transactions = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold mb-1">${totalExpense.toFixed(2)}</div>
+                  <div className="text-3xl font-bold mb-1">₹{totalExpense.toFixed(2)}</div>
                   <p className="text-red-100 text-sm">This period</p>
                 </CardContent>
               </Card>
@@ -316,7 +314,7 @@ const Transactions = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold mb-1">${netBalance.toFixed(2)}</div>
+                  <div className="text-3xl font-bold mb-1">₹{netBalance.toFixed(2)}</div>
                   <p className={`${netBalance >= 0 ? "text-blue-100" : "text-orange-100"} text-sm`}>
                     {netBalance >= 0 ? "Surplus" : "Deficit"}
                   </p>
@@ -436,7 +434,6 @@ const Transactions = () => {
                   </Button>
                   <GeneratePDFModal
                     transactions={filteredTransactions}
-                    filters={filters}
                     buttonContent={
                       <>
                         <FileText className="w-4 h-4 mr-2" />
@@ -444,6 +441,7 @@ const Transactions = () => {
                       </>
                     }
                     buttonClassName="border-red-300 text-red-700 hover:bg-red-50"
+                    type="button" // Prevent form submission
                   />
                   <GenerateExcelModal
                     transactions={filteredTransactions}
@@ -455,6 +453,7 @@ const Transactions = () => {
                       </>
                     }
                     buttonClassName="border-green-300 text-green-700 hover:bg-green-50"
+                    type="button" // Prevent form submission
                   />
                 </div>
               </CardContent>

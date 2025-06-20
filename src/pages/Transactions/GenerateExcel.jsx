@@ -34,10 +34,10 @@ const generateExcel = (transactions, filters) => {
       ["Transaction Report"],
       [`Date Range: ${getDateRange(filters)}`],
       [], // Empty row for spacing
-      ["S.No", "Amount", "Description", "Date & Time", "Type", "Category"],
+      ["S.No", "Amount (In Rupees)", "Description", "Date & Time", "Type", "Category"],
       ...transactions.map((t, index) => [
         index + 1,
-        `$${t.amount.toFixed(2)}`,
+        t.amount.toFixed(2), // Remove dollar symbol from amount
         t.description,
         new Date(t.datetime).toLocaleString(),
         t.transactionType,

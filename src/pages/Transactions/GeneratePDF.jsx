@@ -29,7 +29,7 @@ const generatePDF = (transactions) => {
     // Prepare table data
     const tableData = transactions.map((t, index) => [
       index + 1,
-      `$${t.amount.toFixed(2)}`,
+      t.amount.toFixed(2), // Remove Rupee symbol from amount
       t.description.length > 30 ? t.description.substring(0, 27) + "..." : t.description,
       new Date(t.datetime).toLocaleString(),
       t.transactionType,
@@ -39,7 +39,7 @@ const generatePDF = (transactions) => {
     // Generate table with autoTable
     autoTable(doc, {
       startY: 35,
-      head: [['S.No', 'Amount', 'Description', 'Date & Time', 'Type', 'Category']],
+      head: [['S.No', 'Amount (In Rupees)', 'Description', 'Date & Time', 'Type', 'Category']], // Update column header
       body: tableData,
       styles: {
         fontSize: 10,
