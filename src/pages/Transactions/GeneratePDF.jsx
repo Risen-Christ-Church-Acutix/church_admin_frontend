@@ -61,8 +61,13 @@ const generatePDF = (transactions) => {
       margin: { top: 35, left: 14, right: 14 }
     });
 
-    const pdfBlob = doc.output("blob");
-    return URL.createObjectURL(pdfBlob);
+    // Generate filename with date range
+    const dateRange = getDateRange(transactions).replace(/ to /, '_to_').replace(/\//g, '-');
+    const filename = `Transaction_Report_${dateRange}.pdf`;
+    
+    // Trigger automatic download
+    doc.save(filename);
+    return true;
   } catch (err) {
     console.error("Error generating PDF:", err);
     throw err;
@@ -71,69 +76,24 @@ const generatePDF = (transactions) => {
 
 const GeneratePDFModal = ({ transactions, buttonContent, buttonClassName }) => {
   const { success, error } = useToaster();
-  const [pdfUrl, setPdfUrl] = useState(null);
-  const [showModal, setShowModal] = useState(false);
 
   const handleGeneratePDF = () => {
     try {
-      const url = generatePDF(transactions);
-      setPdfUrl(url);
-      setShowModal(true);
-      success("PDF report generated successfully");
+      generatePDF(transactions);
+      success("PDF report downloaded successfully");
     } catch (err) {
       error("Failed to generate PDF report");
     }
   };
 
-  const closeModal = () => {
-    setShowModal(false);
-    if (pdfUrl) {
-      URL.revokeObjectURL(pdfUrl);
-      setPdfUrl(null);
-    }
-  };
-
   return (
-    <>
-      <Button
-        variant="outline"
-        onClick={handleGeneratePDF}
-        className={`border-amber-300 text-amber-700 hover:bg-amber-50 ${buttonClassName}`}
-      >
-        {buttonContent}
-      </Button>
-
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
-            <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-amber-50">
-              <div>
-                <h2 className="text-xl font-bold text-amber-900">Transaction Report</h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Date Range: {getDateRange(transactions)}
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                onClick={closeModal}
-                className="border-amber-300 text-amber-700 hover:bg-amber-100"
-              >
-                Close
-              </Button>
-            </div>
-            <div className="flex-1 p-6 bg-gray-50">
-              {pdfUrl && (
-                <iframe
-                  src={pdfUrl}
-                  title="Transaction Report"
-                  className="w-full h-full rounded-lg border border-gray-200 shadow-inner"
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+    <Button
+      variant="outline"
+      onClick={handleGeneratePDF}
+      className={`border-amber-300 text-amber-700 hover:bg-amber-50 ${buttonClassName}`}
+    >
+      {buttonContent}
+    </Button>
   );
 };
 
