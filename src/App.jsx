@@ -4,7 +4,6 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 
 // Pages
 import Login from "./pages/Login";
-import ResetPassword from "./pages/ResetPassword";
 import ParishionerManagement from "./pages/BCC Groups/ParishionerManagement";
 import BccGroupDetails from "./pages/Family/BccGroupDetails";
 import FamilyDetails from "./pages/FamilyMembers/FamilyDetails";
@@ -14,6 +13,8 @@ import Transactions from "./pages/Transactions/Transactions";
 import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/AdminDashboard";
 import AccessDenied from "./pages/AccessDenied";
+import ResetAdmin from "./pages/ResetAdmin";
+import ResetPassword from "./pages/ResetPassword";
 
 const ProtectedRoute = ({ children, requiredRole }) => {
   const { user, isLoading } = useAuth();
@@ -35,7 +36,8 @@ function AppRoutes() {
         path="/login" 
         element={isLoggedIn ? <Navigate to="/parishioners" replace /> : <Login />} 
       />
-      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/forgot-password" element={<ResetAdmin />} />
+      <Route path="/reset-password" element={<ResetPassword/>}/>
 
       {/* Protected Routes */}
       <Route path="/" element={<Navigate to="/parishioners" replace />} />

@@ -1,48 +1,63 @@
 import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import { useAuth } from "../context/AuthContext";
-import { User, Mail, Shield, Key, Edit, Save, X, LogOut } from "lucide-react";
+import {
+  User,
+  Mail,
+  Shield,
+  Key,
+  Edit,
+  Save,
+  X,
+  LogOut,
+} from "lucide-react";
 import axiosInstance from "../api-handler/api-handler";
 import { useToaster } from "../components/Toaster";
 
 const Profile = () => {
-  const { user,handleLogout } = useAuth();
+  const { user, handleLogout } = useAuth();
   const [loading, setLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState(currentUser?.name || "");
+  const [name, setName] = useState("");
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const {success}=useToaster();
+  const { success } = useToaster();
 
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const res = await axiosInstance.get(
-        `/api/auth/user/${parseInt(user.id)}`
-      );
+      const res = await axiosInstance.get(`/api/user/${user.id}`);
       setCurrentUser(res.data);
+      setName(res.data.name);
       setLoading(false);
     } catch (err) {
       setLoading(false);
       console.log(err);
     }
   };
+
   useEffect(() => {
     fetchProfile();
   }, []);
-  const handleEditToggle = () => {
+
+  const handleEditToggle = async () => {
     if (isEditing) {
-      // Save changes
-      //updateUser(currentUser.id, { name });
+      try {
+        const res = await axiosInstance.put(`/api/user/${user.id}`, { name });
+        setCurrentUser(res.data.user);
+        success("Name updated successfully");
+      } catch (err) {
+        console.error(err);
+      }
     }
     setIsEditing(!isEditing);
   };
 
-  const handlePasswordSubmit = (e) => {
+  const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     setPasswordError("");
 
@@ -56,13 +71,16 @@ const Profile = () => {
       return;
     }
 
-    //updateUser(currentUser.id, { password });
-    setShowPasswordModal(false);
-    setPassword("");
-    setConfirmPassword("");
+    try {
+      await axiosInstance.put(`/api/user/${user.id}/password`, { password });
+      setShowPasswordModal(false);
+      setPassword("");
+      setConfirmPassword("");
+      success("Password updated successfully");
+    } catch (err) {
+      setPasswordError("Failed to update password");
+    }
   };
-
-  
 
   if (loading) {
     return (
@@ -179,7 +197,6 @@ const Profile = () => {
         </div>
       </div>
 
-      {/* Password Change Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
@@ -254,7 +271,6 @@ const Profile = () => {
         </div>
       )}
 
-      {/* logout model */}
       {showLogoutModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-sm w-full">
