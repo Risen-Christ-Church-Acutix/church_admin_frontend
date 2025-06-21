@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react"; // Add useRef
 import { Button } from "../../components/ui/Button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
@@ -31,6 +31,7 @@ const Transactions = () => {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const addFormRef = useRef(null); // Add ref for AddTransactionForm
 
   const getDateRangeDisplay = () => {
     if (!filters.dateFrom && !filters.dateTo && !filters.period) return "All dates";
@@ -199,6 +200,17 @@ const Transactions = () => {
     await fetchTransactions();
   }, [fetchTransactions]);
 
+  const handleAddButtonClick = () => {
+    setSelectedTransaction(null);
+    setShowForm(true);
+    // Focus the form after a slight delay to ensure it's rendered
+    setTimeout(() => {
+      if (addFormRef.current) {
+        addFormRef.current.focusForm();
+      }
+    }, 0);
+  };
+
   const filteredTransactions = transactions.filter((transaction) => {
     let matches = true;
 
@@ -268,6 +280,7 @@ const Transactions = () => {
               />
             ) : (
               <AddTransactionForm
+                ref={addFormRef} // Pass the ref to AddTransactionForm
                 onClose={() => setShowForm(false)}
                 onSuccess={handleAddTransactionSuccess}
               />
@@ -317,7 +330,7 @@ const Transactions = () => {
                   <div className="text-3xl font-bold mb-1">₹{netBalance.toFixed(2)}</div>
                   <p className={`${netBalance >= 0 ? "text-blue-100" : "text-orange-100"} text-sm`}>
                     {netBalance >= 0 ? "Surplus" : "Deficit"}
-                  </p>
+acer                </p>
                 </CardContent>
               </Card>
             </div>
@@ -469,10 +482,7 @@ const Transactions = () => {
                     </CardDescription>
                   </div>
                   <Button
-                    onClick={() => {
-                      setSelectedTransaction(null);
-                      setShowForm(true);
-                    }}
+                    onClick={handleAddButtonClick} // Use new handler with focus logic
                     className="bg-amber-600 hover:bg-amber-700 text-white"
                   >
                     <Plus className="w-4 h-4 mr-2" />
