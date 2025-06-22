@@ -4,16 +4,9 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    types: [closed]
-    branches:
-      - main
 
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/main' && (
-         github.event_name == 'push' || github.event.pull_request.merged == true
-       )
     name: Deploy via SSH
     runs-on: ubuntu-latest
 
