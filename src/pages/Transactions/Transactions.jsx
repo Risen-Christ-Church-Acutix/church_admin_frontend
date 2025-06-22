@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react"; // Add useRef
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "../../components/ui/Button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import DataTable from "../../components/DataTable";
 import Layout from "../../components/Layout";
 import { useToaster } from "../../components/Toaster";
-import { Plus, Filter, Download, FileText, Calendar, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
+import { Plus, Filter, Download, FileText, Calendar, TrendingUp, TrendingDown } from "lucide-react";
 import AddTransactionForm from "./AddTransactionForm";
 import UpdateTransactionForm from "./UpdateTransactionForm";
 import axiosInstance from "../../api-handler/api-handler";
@@ -31,7 +31,9 @@ const Transactions = () => {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const addFormRef = useRef(null); // Add ref for AddTransactionForm
+  const [hasError, setHasError] = useState(false);
+  const [shouldFetch, setShouldFetch] = useState(true);
+  const addFormRef = useRef(null);
 
   const getDateRangeDisplay = () => {
     if (!filters.dateFrom && !filters.dateTo && !filters.period) return "All dates";
@@ -52,6 +54,7 @@ const Transactions = () => {
   const fetchTransactions = useCallback(async () => {
     try {
       setIsLoading(true);
+      setHasError(false);
       const response = await axiosInstance.get("/api/transactions/all");
       const sortedTransactions = response.data.transactions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       const mappedTransactions = sortedTransactions.map((t, index) => ({
@@ -67,16 +70,24 @@ const Transactions = () => {
       }));
       setTransactions(mappedTransactions);
     } catch (err) {
-      error("Failed to fetch transactions");
+      setHasError(true);
+      error("Failed to fetch transactions. Please try again.");
       console.error(err);
     } finally {
       setIsLoading(false);
+      setShouldFetch(false);
     }
   }, [error]);
 
   useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
+    if (shouldFetch) {
+      fetchTransactions();
+    }
+  }, [shouldFetch, fetchTransactions]);
+
+  const handleRetry = () => {
+    setShouldFetch(true);
+  };
 
   const transactionColumns = [
     { key: "sno", header: "S.No", className: "w-16" },
@@ -187,7 +198,7 @@ const Transactions = () => {
         await axiosInstance.delete(`/api/transactions/delete`, {
           data: { id: transaction.id },
         });
-        await fetchTransactions();
+        setShouldFetch(true);
         success(`Transaction #${transaction.sno} has been deleted successfully.`);
       } catch (err) {
         console.error("Error deleting transaction:", err.message, err.response?.data);
@@ -196,14 +207,13 @@ const Transactions = () => {
     }
   };
 
-  const handleAddTransactionSuccess = useCallback(async () => {
-    await fetchTransactions();
-  }, [fetchTransactions]);
+  const handleAddTransactionSuccess = useCallback(() => {
+    setShouldFetch(true);
+  }, []);
 
   const handleAddButtonClick = () => {
     setSelectedTransaction(null);
     setShowForm(true);
-    // Focus the form after a slight delay to ensure it's rendered
     setTimeout(() => {
       if (addFormRef.current) {
         addFormRef.current.focusForm();
@@ -267,7 +277,21 @@ const Transactions = () => {
           <div className="text-center text-amber-700">Loading transactions...</div>
         )}
 
-        {!isLoading && showForm && (
+        {hasError && !isLoading && (
+          <Card className="bg-red-50 border-red-200 mb-6">
+            <CardContent className="p-6 text-center">
+              <p className="text-red-700 mb-4">Failed to load transactions. Please try again.</p>
+              <Button
+                onClick={handleRetry}
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                Retry
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {!isLoading && !hasError && showForm && (
           <>
             {selectedTransaction ? (
               <UpdateTransactionForm
@@ -280,7 +304,7 @@ const Transactions = () => {
               />
             ) : (
               <AddTransactionForm
-                ref={addFormRef} // Pass the ref to AddTransactionForm
+                ref={addFormRef}
                 onClose={() => setShowForm(false)}
                 onSuccess={handleAddTransactionSuccess}
               />
@@ -288,7 +312,7 @@ const Transactions = () => {
           </>
         )}
 
-        {!isLoading && (
+        {!isLoading && !hasError && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
@@ -323,14 +347,14 @@ const Transactions = () => {
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center justify-between">
                     <span>Net Balance</span>
-                    <DollarSign className="w-8 h-8 opacity-80" />
+                    <span className="text-3xl opacity-80">₹</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold mb-1">₹{netBalance.toFixed(2)}</div>
                   <p className={`${netBalance >= 0 ? "text-blue-100" : "text-orange-100"} text-sm`}>
                     {netBalance >= 0 ? "Surplus" : "Deficit"}
-acer                </p>
+                  </p>
                 </CardContent>
               </Card>
             </div>
@@ -454,7 +478,7 @@ acer                </p>
                       </>
                     }
                     buttonClassName="border-red-300 text-red-700 hover:bg-red-50"
-                    type="button" // Prevent form submission
+                    type="button"
                   />
                   <GenerateExcelModal
                     transactions={filteredTransactions}
@@ -466,7 +490,7 @@ acer                </p>
                       </>
                     }
                     buttonClassName="border-green-300 text-green-700 hover:bg-green-50"
-                    type="button" // Prevent form submission
+                    type="button"
                   />
                 </div>
               </CardContent>
@@ -482,7 +506,7 @@ acer                </p>
                     </CardDescription>
                   </div>
                   <Button
-                    onClick={handleAddButtonClick} // Use new handler with focus logic
+                    onClick={handleAddButtonClick}
                     className="bg-amber-600 hover:bg-amber-700 text-white"
                   >
                     <Plus className="w-4 h-4 mr-2" />
