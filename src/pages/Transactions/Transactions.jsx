@@ -28,6 +28,7 @@ const Transactions = () => {
     period: "",
   });
   const [showForm, setShowForm] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -185,6 +186,11 @@ const Transactions = () => {
       amountMax: "",
       period: "",
     });
+    setShowAdvancedFilters(false);
+  };
+
+  const applyFilters = () => {
+    // Trigger filter application (already handled by filteredTransactions)
   };
 
   const handleEditTransaction = (transaction) => {
@@ -361,139 +367,168 @@ const Transactions = () => {
 
             <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-amber-200 mb-6">
               <CardHeader className="bg-gradient-to-r from-amber-100 to-orange-100 border-b border-amber-200">
-                <CardTitle className="text-amber-900 text-lg flex items-center">
-                  <Filter className="w-5 h-5 mr-2" />
-                  Filters & Actions
-                </CardTitle>
-                <CardDescription className="text-amber-700 mt-1">
-                  Date Range: {getDateRangeDisplay()}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
-                  <Select
-                    value={filters.transactionType}
-                    onValueChange={(value) => handleFilterChange("transactionType", value)}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-amber-900 text-xl">Filters</CardTitle>
+                    <CardDescription className="text-amber-700">
+                      Refine the transaction records list | Date Range: {getDateRangeDisplay()}
+                    </CardDescription>
+                  </div>
+                  <Button
+                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                    onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                   >
-                    <SelectTrigger className="border-amber-300">
-                      <SelectValue placeholder="All Types" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">All Types</SelectItem>
-                      <SelectItem value="INCOME">Income</SelectItem>
-                      <SelectItem value="EXPENSE">Expense</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value={filters.category}
-                    onValueChange={(value) => handleFilterChange("category", value)}
-                  >
-                    <SelectTrigger className="border-amber-300">
-                      <SelectValue placeholder="All Categories" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">All Categories</SelectItem>
-                      <SelectItem value="SUNDAY_COLLECTION">Sunday Collection</SelectItem>
-                      <SelectItem value="DONATION">Donation</SelectItem>
-                      <SelectItem value="SUBSCRIPTION_FEES">Subscription Fees</SelectItem>
-                      <SelectItem value="EVENT_REGISTRATION">Event Registration</SelectItem>
-                      <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
-                      <SelectItem value="SALARY">Salary</SelectItem>
-                      <SelectItem value="EVENT_EXPENSE">Event Expense</SelectItem>
-                      <SelectItem value="CHARITY">Charity</SelectItem>
-                      <SelectItem value="DUMPBOX">Dumpbox</SelectItem>
-                      <SelectItem value="SUNDAY_OFFERING">Sunday Offering</SelectItem>
-                      <SelectItem value="SUBSCRIPTION">Subscription</SelectItem>
-                      <SelectItem value="OTHER">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value={filters.period}
-                    onValueChange={(value) => handleFilterChange("period", value)}
-                  >
-                    <SelectTrigger className="border-amber-300">
-                      <SelectValue placeholder="Select Period" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Custom Period</SelectItem>
-                      <SelectItem value="1_MONTH">Last 1 Month</SelectItem>
-                      <SelectItem value="3_MONTHS">Last 3 Months</SelectItem>
-                      <SelectItem value="6_MONTHS">Last 6 Months</SelectItem>
-                      <SelectItem value="12_MONTHS">Last 12 Months</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  {!filters.period && (
-                    <>
-                      <Input
-                        type="date"
-                        placeholder="From Date"
-                        value={filters.dateFrom}
-                        onChange={(e) => handleFilterChange("dateFrom", e.target.value)}
-                        className="border-amber-300 focus:border-amber-500"
-                      />
-                      <Input
-                        type="date"
-                        placeholder="To Date"
-                        value={filters.dateTo}
-                        onChange={(e) => handleFilterChange("dateTo", e.target.value)}
-                        className="border-amber-300 focus:border-amber-500"
-                      />
-                    </>
-                  )}
-
-                  {filters.period && (
-                    <div className="col-span-2"></div>
-                  )}
-
-                  <Input
-                    type="number"
-                    placeholder="Min Amount"
-                    value={filters.amountMin}
-                    onChange={(e) => handleFilterChange("amountMin", e.target.value)}
-                    className="border-amber-300 focus:border-amber-500"
-                  />
-
-                  <Input
-                    type="number"
-                    placeholder="Max Amount"
-                    value={filters.amountMax}
-                    onChange={(e) => handleFilterChange("amountMax", e.target.value)}
-                    className="border-amber-300 focus:border-amber-500"
-                  />
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" onClick={clearFilters} className="border-amber-300 text-amber-700">
-                    Clear Filters
+                    <Filter className="w-4 h-4 mr-2" />
+                    {showAdvancedFilters ? "Hide Filters" : "Show Filters"}
                   </Button>
-                  <GeneratePDFModal
-                    transactions={filteredTransactions}
-                    buttonContent={
-                      <>
-                        <FileText className="w-4 h-4 mr-2" />
-                        Generate PDF
-                      </>
-                    }
-                    buttonClassName="border-red-300 text-red-700 hover:bg-red-50"
-                    type="button"
-                  />
-                  <GenerateExcelModal
-                    transactions={filteredTransactions}
-                    filters={filters}
-                    buttonContent={
-                      <>
-                        <Download className="w-4 h-4 mr-2" />
-                        Generate Excel
-                      </>
-                    }
-                    buttonClassName="border-green-300 text-green-700 hover:bg-green-50"
-                    type="button"
-                  />
                 </div>
-              </CardContent>
+              </CardHeader>
+              {showAdvancedFilters && (
+                <CardContent className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-amber-700 mb-1">Transaction Type</label>
+                      <Select
+                        value={filters.transactionType}
+                        onValueChange={(value) => handleFilterChange("transactionType", value)}
+                      >
+                        <SelectTrigger className="border-amber-300">
+                          <SelectValue placeholder="All Types" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">All Types</SelectItem>
+                          <SelectItem value="INCOME">Income</SelectItem>
+                          <SelectItem value="EXPENSE">Expense</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="block text-amber-700 mb-1">Category</label>
+                      <Select
+                        value={filters.category}
+                        onValueChange={(value) => handleFilterChange("category", value)}
+                      >
+                        <SelectTrigger className="border-amber-300">
+                          <SelectValue placeholder="All Categories" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">All Categories</SelectItem>
+                          <SelectItem value="SUNDAY_COLLECTION">Sunday Collection</SelectItem>
+                          <SelectItem value="DONATION">Donation</SelectItem>
+                          <SelectItem value="SUBSCRIPTION_FEES">Subscription Fees</SelectItem>
+                          <SelectItem value="EVENT_REGISTRATION">Event Registration</SelectItem>
+                          <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                          <SelectItem value="SALARY">Salary</SelectItem>
+                          <SelectItem value="EVENT_EXPENSE">Event Expense</SelectItem>
+                          <SelectItem value="CHARITY">Charity</SelectItem>
+                          <SelectItem value="DUMPBOX">Dumpbox</SelectItem>
+                          <SelectItem value="SUNDAY_OFFERING">Sunday Offering</SelectItem>
+                          <SelectItem value="SUBSCRIPTION">Subscription</SelectItem>
+                          <SelectItem value="OTHER">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="block text-amber-700 mb-1">Period</label>
+                      <Select
+                        value={filters.period}
+                        onValueChange={(value) => handleFilterChange("period", value)}
+                      >
+                        <SelectTrigger className="border-amber-300">
+                          <SelectValue placeholder="Select Period" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Custom Period</SelectItem>
+                          <SelectItem value="1_MONTH">Last 1 Month</SelectItem>
+                          <SelectItem value="3_MONTHS">Last 3 Months</SelectItem>
+                          <SelectItem value="6_MONTHS">Last 6 Months</SelectItem>
+                          <SelectItem value="12_MONTHS">Last 12 Months</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {!filters.period && (
+                      <>
+                        <div>
+                          <label className="block text-amber-700 mb-1">Start Date</label>
+                          <Input
+                            type="date"
+                            value={filters.dateFrom}
+                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)}
+                            className="border-amber-300 focus:border-amber-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-amber-700 mb-1">End Date</label>
+                          <Input
+                            type="date"
+                            value={filters.dateTo}
+                            onChange={(e) => handleFilterChange("dateTo", e.target.value)}
+                            className="border-amber-300 focus:border-amber-500"
+                          />
+                        </div>
+                      </>
+                    )}
+                    <div>
+                      <label className="block text-amber-700 mb-1">Min Amount</label>
+                      <Input
+                        type="number"
+                        value={filters.amountMin}
+                        onChange={(e) => handleFilterChange("amountMin", e.target.value)}
+                        placeholder="Min Amount"
+                        className="border-amber-300 focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-amber-700 mb-1">Max Amount</label>
+                      <Input
+                        type="number"
+                        value={filters.amountMax}
+                        onChange={(e) => handleFilterChange("amountMax", e.target.value)}
+                        placeholder="Max Amount"
+                        className="border-amber-300 focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex space-x-4 mt-6">
+                    <Button
+                      className="bg-amber-600 hover:bg-amber-700 text-white"
+                      onClick={applyFilters}
+                    >
+                      Apply Filters
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={clearFilters}
+                      className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                    >
+                      Clear Filters
+                    </Button>
+                    <GeneratePDFModal
+                      transactions={filteredTransactions}
+                      buttonContent={
+                        <>
+                          <FileText className="w-4 h-4 mr-2" />
+                          Generate PDF
+                        </>
+                      }
+                      buttonClassName="border-red-300 text-red-700 hover:bg-red-50"
+                      type="button"
+                    />
+                    <GenerateExcelModal
+                      transactions={filteredTransactions}
+                      filters={filters}
+                      buttonContent={
+                        <>
+                          <Download className="w-4 h-4 mr-2" />
+                          Generate Excel
+                        </>
+                      }
+                      buttonClassName="border-green-300 text-green-700 hover:bg-green-50"
+                      type="button"
+                    />
+                  </div>
+                </CardContent>
+              )}
             </Card>
 
             <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-amber-200">
@@ -515,13 +550,19 @@ const Transactions = () => {
                 </div>
               </CardHeader>
               <CardContent className="p-6">
-                <DataTable
-                  data={filteredTransactions}
-                  columns={transactionColumns}
-                  searchPlaceholder="Search by description, amount, or category..."
-                  onEdit={handleEditTransaction}
-                  onDelete={handleDeleteTransaction}
-                />
+                {filteredTransactions.length === 0 ? (
+                  <div className="text-center text-amber-600">
+                    No records match the selected filters.
+                  </div>
+                ) : (
+                  <DataTable
+                    data={filteredTransactions}
+                    columns={transactionColumns}
+                    searchPlaceholder="Search by description, amount, or category..."
+                    onEdit={handleEditTransaction}
+                    onDelete={handleDeleteTransaction}
+                  />
+                )}
               </CardContent>
             </Card>
           </>
