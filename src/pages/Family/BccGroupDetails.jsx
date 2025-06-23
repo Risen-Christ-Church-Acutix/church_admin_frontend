@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useParams, useNavigate } from "react-router-dom";
@@ -119,14 +118,6 @@ const BccGroupDetails = () => {
       header: "Members",
       className: "text-center",
       cellClassName: "text-center",
-      render: (value, item) => (
-        <span
-          className="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer hover:underline"
-          onClick={() => handleViewFamily(item)}
-        >
-          {value}
-        </span>
-      ),
     },
   ];
 

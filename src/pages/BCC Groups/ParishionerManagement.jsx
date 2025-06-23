@@ -113,16 +113,6 @@ const ParishionerManagement = () => {
       header: "No. of Families",
       className: "text-center align-middle",
       cellClassName: "text-center align-middle",
-      render: (value, item) => (
-        <div className="flex justify-center items-center">
-          <span
-            className="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer hover:underline"
-            onClick={() => navigate(`/parishioners/groups/${item.id}`)}
-          >
-            {value}
-          </span>
-        </div>
-      ),
     },
   ];
 
