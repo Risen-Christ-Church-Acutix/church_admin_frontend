@@ -10,24 +10,39 @@ import {
   CardTitle,
 } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
+import { Input } from "../components/ui/Input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/Select";
 import DataTable from "../components/DataTable";
 import Layout from "../components/Layout";
 import { useToaster } from "../components/Toaster";
-import { Plus, Calendar } from "lucide-react";
+import { Plus, Calendar, Filter } from "lucide-react";
 import axiosInstance from "../api-handler/api-handler";
 
 const SacramentRecords = () => {
   const { success, error } = useToaster();
   const [sacraments, setSacraments] = useState([]);
+  const [filteredSacraments, setFilteredSacraments] = useState([]);
   const [editData, setEditData] = useState({});
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [priests, setPriests] = useState([]);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    type: "",
+    priestId: "",
+    startDate: "",
+    endDate: "",
+    parishionerName: "",
+  });
 
   useEffect(() => {
     fetchData();
     fetchPriests();
   }, []);
+
+  useEffect(() => {
+    applyFilters();
+  }, [sacraments, filters]);
 
   const fetchData = async () => {
     try {
@@ -36,12 +51,14 @@ const SacramentRecords = () => {
         id: s.id,
         type: s.type,
         parishionerName: s.parishioner?.name || "N/A",
-        parishionerId: s.parishioner?.id || "", // Added to track parishioner
+        parishionerId: s.parishioner?.id || "",
         date: s.date,
         priestId: s.priest?.id || "",
         priestName: s.priest?.name || "N/A",
       }));
+      console.log("Fetched sacraments with priestIds:", transformedData.map(s => ({ id: s.id, priestId: s.priestId })));
       setSacraments(transformedData);
+      setFilteredSacraments(transformedData);
     } catch (err) {
       error("Failed to fetch sacrament records.");
     }
@@ -51,9 +68,67 @@ const SacramentRecords = () => {
     try {
       const res = await axiosInstance.get("/api/parishioners/getPriests");
       setPriests(res.data);
+      console.log("Fetched priests with IDs:", res.data.map(p => ({ id: p.id, name: p.name })));
     } catch (err) {
       error("Failed to fetch priests.");
     }
+  };
+
+  const getDateRangeDisplay = () => {
+    if (!filters.startDate && !filters.endDate) return "All dates";
+    const from = filters.startDate ? new Date(filters.startDate).toLocaleDateString() : "Start";
+    const to = filters.endDate ? new Date(filters.endDate).toLocaleDateString() : "End";
+    return `${from} to ${to}`;
+  };
+
+  const applyFilters = () => {
+    let result = [...sacraments];
+
+    if (filters.type) {
+      result = result.filter((s) => s.type === filters.type);
+    }
+
+    if (filters.priestId) {
+      result = result.filter((s) => String(s.priestId) === String(filters.priestId));
+    }
+
+    if (filters.startDate) {
+      result = result.filter(
+        (s) => new Date(s.date) >= new Date(filters.startDate)
+      );
+    }
+
+    if (filters.endDate) {
+      result = result.filter(
+        (s) => new Date(s.date) <= new Date(filters.endDate)
+      );
+    }
+
+    if (filters.parishionerName) {
+      result = result.filter((s) =>
+        s.parishionerName
+          .toLowerCase()
+          .includes(filters.parishionerName.toLowerCase())
+      );
+    }
+
+    console.log("Filtered sacraments:", result);
+    setFilteredSacraments(result);
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      type: "",
+      priestId: "",
+      startDate: "",
+      endDate: "",
+      parishionerName: "",
+    });
+    setShowAdvancedFilters(false);
+  };
+
+  const handleFilterChange = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleEditSacrament = (sacrament) => {
@@ -107,7 +182,7 @@ const SacramentRecords = () => {
   };
 
   const countByType = (type) =>
-    sacraments.filter((s) => s.type === type).length;
+    filteredSacraments.filter((s) => s.type === type).length;
 
   // List of all possible sacraments
   const allSacraments = [
@@ -125,7 +200,7 @@ const SacramentRecords = () => {
         (s) =>
           s.parishionerId === editData.parishionerId &&
           s.type === sacrament.value &&
-          s.id !== editData.id // Exclude the current record being edited
+          s.id !== editData.id
       )
   );
 
@@ -158,8 +233,8 @@ const SacramentRecords = () => {
       key: "date",
       header: "Date",
       render: (value) => (
-        <div className="flex items-center">
-          <Calendar className="w-3 h-3 mr-1 text-amber-700" />
+        <div className="flex items-center text-black text-sm">
+          <Calendar className="w-3 h-3 mr-1 text-black" />
           {new Date(value).toLocaleDateString()}
         </div>
       ),
@@ -178,52 +253,189 @@ const SacramentRecords = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 shadow-lg">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Baptisms</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center justify-between">
+                <span>Baptisms</span>
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{countByType("BAPTISM")}</div>
+              <div className="text-3xl font-bold mb-1">{countByType("BAPTISM")}</div>
+              <p className="text-blue-100 text-sm">Total recorded</p>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">First Communions</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center justify-between">
+                <span>First Communions</span>
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {countByType("FIRST_COMMUNION")}
-              </div>
+              <div className="text-3xl font-bold mb-1">{countByType("FIRST_COMMUNION")}</div>
+              <p className="text-green-100 text-sm">Total recorded</p>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Confirmations</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center justify-between">
+                <span>Confirmations</span>
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {countByType("CONFIRMATION")}
-              </div>
+              <div className="text-3xl font-bold mb-1">{countByType("CONFIRMATION")}</div>
+              <p className="text-purple-100 text-sm">Total recorded</p>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-red-500 to-red-600 text-white border-0 shadow-lg">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Marriages</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center justify-between">
+                <span>Marriages</span>
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{countByType("MARRIAGE")}</div>
+              <div className="text-3xl font-bold mb-1">{countByType("MARRIAGE")}</div>
+              <p className="text-red-100 text-sm">Total recorded</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-gray-600 to-gray-800 text-white border-0 shadow-lg">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center justify-between">
+                <span>Funerals</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold mb-1">{countByType("FUNERAL")}</div>
+              <p className="text-gray-100 text-sm">Total recorded</p>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-gray-500 to-gray-600 text-white border-0 shadow-lg">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Total Records</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center justify-between">
+                <span>Total Records</span>
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{sacraments.length}</div>
+              <div className="text-3xl font-bold mb-1">{filteredSacraments.length}</div>
+              <p className="text-gray-100 text-sm">Total recorded</p>
             </CardContent>
           </Card>
         </div>
+
+        <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-amber-200 mb-6">
+          <CardHeader className="bg-gradient-to-r from-amber-100 to-orange-100 border-b border-amber-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-amber-900 text-xl">
+                  Filters
+                </CardTitle>
+                <CardDescription className="text-amber-700">
+                  Refine the sacrament records list | Date Range: {getDateRangeDisplay()}
+                </CardDescription>
+              </div>
+              <Button
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              >
+                <Filter className="w-4 h-4 mr-2" />
+                {showAdvancedFilters ? "Hide Filters" : "Show Filters"}
+              </Button>
+            </div>
+          </CardHeader>
+          {showAdvancedFilters && (
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-amber-700 mb-1">
+                    Sacrament Type
+                  </label>
+                  <Select
+                    value={filters.type}
+                    onValueChange={(value) => handleFilterChange("type", value)}
+                  >
+                    <SelectTrigger className="border-amber-300 focus:border-amber-500">
+                      <SelectValue placeholder="All Types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Types</SelectItem>
+                      {allSacraments.map((sacrament) => (
+                        <SelectItem key={sacrament.value} value={sacrament.value}>
+                          {sacrament.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="block text-amber-700 mb-1">Priest</label>
+                  <Select
+                    value={filters.priestId}
+                    onValueChange={(value) => handleFilterChange("priestId", value)}
+                  >
+                    <SelectTrigger className="border-amber-300 focus:border-amber-500">
+                      <SelectValue placeholder="All Priests" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Priests</SelectItem>
+                      {priests.map((priest) => (
+                        <SelectItem key={priest.id} value={String(priest.id)}>
+                          {priest.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="block text-amber-700 mb-1">
+                    Start Date
+                  </label>
+                  <Input
+                    type="date"
+                    value={filters.startDate}
+                    onChange={(e) => handleFilterChange("startDate", e.target.value)}
+                    className="border-amber-300 focus:border-amber-500 text-black"
+                  />
+                </div>
+                <div>
+                  <label className="block text-amber-700 mb-1">End Date</label>
+                  <Input
+                    type="date"
+                    value={filters.endDate}
+                    onChange={(e) => handleFilterChange("endDate", e.target.value)}
+                    className="border-amber-300 focus:border-amber-500 text-black"
+                  />
+                </div>
+              </div>
+              <div className="mt-4">
+                <label className="block text-amber-700 mb-1">
+                  Parishioner Name
+                </label>
+                <Input
+                  type="text"
+                  value={filters.parishionerName}
+                  onChange={(e) => handleFilterChange("parishionerName", e.target.value)}
+                  placeholder="Enter parishioner name"
+                  className="border-amber-300 focus:border-amber-500 text-black"
+                />
+              </div>
+              <div className="flex space-x-4 mt-6">
+                <Button
+                  className="bg-amber-600 hover:bg-amber-700 text-white"
+                  onClick={applyFilters}
+                >
+                  Apply Filters
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={clearFilters}
+                  className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            </CardContent>
+          )}
+        </Card>
 
         <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-amber-200">
           <CardHeader className="bg-gradient-to-r from-amber-100 to-orange-100 border-b border-amber-200">
@@ -244,44 +456,48 @@ const SacramentRecords = () => {
                 <h3 className="text-amber-900 text-lg mb-3">Edit Sacrament</h3>
                 <div className="mb-3">
                   <label className="block text-amber-700 mb-1">Type</label>
-                  <select
+                  <Select
                     value={editData.type}
-                    onChange={(e) =>
-                      setEditData((prev) => ({ ...prev, type: e.target.value }))
-                    }
-                    className="w-[330px] border border-amber-300 rounded px-3 py-2"
+                    onValueChange={(value) => setEditData((prev) => ({ ...prev, type: value }))}
                   >
-                    <option value="">Select sacrament</option>
-                    {availableSacraments.map((sacrament) => (
-                      <option key={sacrament.value} value={sacrament.value}>
-                        {sacrament.label}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-[330px] border-amber-300 focus:border-amber-500">
+                      <SelectValue placeholder="Select sacrament" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Select sacrament</SelectItem>
+                      {availableSacraments.map((sacrament) => (
+                        <SelectItem key={sacrament.value} value={sacrament.value}>
+                          {sacrament.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="mb-3">
                   <label className="block text-amber-700 mb-1">Priest</label>
-                  <select
+                  <Select
                     value={editData.priestName}
-                    onChange={(e) => {
-                      const selected = priests.find(
-                        (p) => p.name === e.target.value
-                      );
+                    onValueChange={(value) => {
+                      const selected = priests.find((p) => p.name === value);
                       setEditData((prev) => ({
                         ...prev,
                         priestId: selected?.id || "",
                         priestName: selected?.name || "",
                       }));
                     }}
-                    className="w-[330px] border border-amber-300 rounded px-3 py-2"
                   >
-                    <option value="">Select priest</option>
-                    {priests.map((priest) => (
-                      <option key={priest.id} value={priest.name}>
-                        {priest.name}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-[330px] border-amber-300 focus:border-amber-500">
+                      <SelectValue placeholder="Select priest" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Select priest</SelectItem>
+                      {priests.map((priest) => (
+                        <SelectItem key={priest.id} value={priest.name}>
+                          {priest.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="flex space-x-4">
                   <Button
@@ -295,20 +511,27 @@ const SacramentRecords = () => {
                     variant="outline"
                     onClick={() => setIsEditing(false)}
                     disabled={isSaving}
+                    className="border-amber-300 text-amber-700 hover:bg-amber-100"
                   >
                     Cancel
                   </Button>
                 </div>
               </div>
             )}
-            <DataTable
-              data={sacraments}
-              columns={sacramentColumns}
-              searchPlaceholder="Search by parishioner name, sacrament type, or priest..."
-              onEdit={handleEditSacrament}
-              onView={handleViewSacrament}
-              onDelete={handleDeleteSacrament}
-            />
+            {filteredSacraments.length === 0 ? (
+              <div className="text-center text-amber-600">
+                No records match the selected filters.
+              </div>
+            ) : (
+              <DataTable
+                data={filteredSacraments}
+                columns={sacramentColumns}
+                searchPlaceholder="Search by parishioner name, sacrament type, or priest..."
+                onEdit={handleEditSacrament}
+                onView={handleViewSacrament}
+                onDelete={handleDeleteSacrament}
+              />
+            )}
           </CardContent>
         </Card>
       </div>
