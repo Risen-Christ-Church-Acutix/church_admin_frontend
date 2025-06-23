@@ -36,6 +36,7 @@ const SacramentRecords = () => {
         id: s.id,
         type: s.type,
         parishionerName: s.parishioner?.name || "N/A",
+        parishionerId: s.parishioner?.id || "", // Added to track parishioner
         date: s.date,
         priestId: s.priest?.id || "",
         priestName: s.priest?.name || "N/A",
@@ -61,6 +62,7 @@ const SacramentRecords = () => {
       type: sacrament.type,
       priestId: sacrament.priestId,
       priestName: sacrament.priestName,
+      parishionerId: sacrament.parishionerId,
     });
     setIsEditing(true);
   };
@@ -70,10 +72,9 @@ const SacramentRecords = () => {
     try {
       await axiosInstance.post(`/api/sacraments/update/${editData.id}`, {
         type: editData.type,
-        priest:{
-          id:editData.priestId,
-        }
-        
+        priest: {
+          id: editData.priestId,
+        },
       });
       success("Sacrament updated successfully.");
       setIsEditing(false);
@@ -107,6 +108,26 @@ const SacramentRecords = () => {
 
   const countByType = (type) =>
     sacraments.filter((s) => s.type === type).length;
+
+  // List of all possible sacraments
+  const allSacraments = [
+    { value: "BAPTISM", label: "Baptism" },
+    { value: "FIRST_COMMUNION", label: "First Communion" },
+    { value: "CONFIRMATION", label: "Confirmation" },
+    { value: "MARRIAGE", label: "Marriage" },
+    { value: "FUNERAL", label: "Funeral" },
+  ];
+
+  // Filter out sacraments already completed by the parishioner
+  const availableSacraments = allSacraments.filter(
+    (sacrament) =>
+      !sacraments.some(
+        (s) =>
+          s.parishionerId === editData.parishionerId &&
+          s.type === sacrament.value &&
+          s.id !== editData.id // Exclude the current record being edited
+      )
+  );
 
   const sacramentColumns = [
     { key: "parishionerName", header: "Parishioner Name" },
@@ -231,11 +252,11 @@ const SacramentRecords = () => {
                     className="w-[330px] border border-amber-300 rounded px-3 py-2"
                   >
                     <option value="">Select sacrament</option>
-                    <option value="BAPTISM">Baptism</option>
-                    <option value="FIRST_COMMUNION">First Communion</option>
-                    <option value="CONFIRMATION">Confirmation</option>
-                    <option value="MARRIAGE">Marriage</option>
-                    <option value="FUNERAL">Funeral</option>
+                    {availableSacraments.map((sacrament) => (
+                      <option key={sacrament.value} value={sacrament.value}>
+                        {sacrament.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="mb-3">

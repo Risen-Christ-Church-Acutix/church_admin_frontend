@@ -43,17 +43,19 @@ const FamilyDetails = () => {
 
   useEffect(() => {
     fetchData();
-    setFamilyData({
-      bccGroup: {
-        id: groupId,
-        name: groupName,
-      },
-      phone: currentFamily.phone,
-      address: currentFamily.address,
-      familyHeadName: currentFamily.headOfFamily,
-    });
-    console.log(currentFamily);
-  }, []);
+    if (currentFamily) {
+      setFamilyData({
+        bccGroup: {
+          id: groupId,
+          name: groupName,
+        },
+        phone: currentFamily.phone || "",
+        address: currentFamily.address || "",
+        familyHeadName: currentFamily.headOfFamily || "",
+      });
+      console.log(currentFamily);
+    }
+  }, [currentFamily, groupId, groupName]);
 
   const fetchData = async () => {
     try {
@@ -75,8 +77,6 @@ const FamilyDetails = () => {
         gender: data.gender,
         sacraments: data.sacraments || [],
       }));
-
-      // const head = members.find(m => m.isFamilyHead);
 
       setFamilyData((prev) => ({
         ...prev,
@@ -180,13 +180,12 @@ const FamilyDetails = () => {
       );
       success(`${parishioner.name} has been marked as inactive.`);
       fetchData();
-    } catch (err) {
-      error(
-        err.response?.data?.message || "An error occurred while inactivating."
-      );
-      return;
+    } catch (error){
+        error.response?.data?.message || "An error occurred while inactivating."
+        return;
     }
   };
+
   const handleEditSubmit = async () => {
     if (!editData.name.trim()) {
       error("Name must be filled.");
@@ -195,7 +194,6 @@ const FamilyDetails = () => {
 
     let payload = {};
 
-    // Include new sacrament details only if type is provided
     if (newSacrament && newPriest?.id) {
       payload = {
         parishionerId: editData.id,
@@ -217,7 +215,6 @@ const FamilyDetails = () => {
             parishionerId: editData.id,
             type: newSacrament,
             date: new Date().toISOString(),
-
             priestId: newPriest.id,
           }
         );
@@ -236,6 +233,21 @@ const FamilyDetails = () => {
       setIsSaving(false);
     }
   };
+
+  // List of all possible sacraments
+  const allSacraments = [
+    { value: "BAPTISM", label: "Baptism" },
+    { value: "FIRST_COMMUNION", label: "First Communion" },
+    { value: "CONFIRMATION", label: "Confirmation" },
+    { value: "MARRIAGE", label: "Marriage" },
+    { value: "FUNERAL", label: "Funeral" },
+  ];
+
+  // Filter out sacraments that have already been completed
+  const availableSacraments = allSacraments.filter(
+    (sacrament) =>
+      !editData.completedSacraments?.some((s) => s.type === sacrament.value)
+  );
 
   return (
     <Layout>
@@ -356,11 +368,11 @@ const FamilyDetails = () => {
                     className="w-[330px] border border-amber-300 rounded px-3 py-2"
                   >
                     <option value="">Select sacrament</option>
-                    <option value="BAPTISM">Baptism</option>
-                    <option value="FIRST_COMMUNION">First Communion</option>
-                    <option value="CONFIRMATION">Confirmation</option>
-                    <option value="MARRIAGE">Marriage</option>
-                    <option value="FUNERAL">Funeral</option>
+                    {availableSacraments.map((sacrament) => (
+                      <option key={sacrament.value} value={sacrament.value}>
+                        {sacrament.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
