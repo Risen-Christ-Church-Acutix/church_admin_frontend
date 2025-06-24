@@ -13,9 +13,10 @@ import {
   Home,
   CreditCard,
   MapPin,
+  Eye
 } from "lucide-react"
 
-const EventCard = ({ event, isUpcoming = true, onEdit, onDelete, onRegister }) => {
+const EventCard = ({ event, isUpcoming = true, onEdit, onDelete, onRegister, onViewRegistrations }) => {
   const getCategoryGradient = (category) => {
     const gradients = {
       MASS: "from-blue-500 to-blue-600",
@@ -56,32 +57,44 @@ const EventCard = ({ event, isUpcoming = true, onEdit, onDelete, onRegister }) =
     return diffDays >= 0 && diffDays <= 7;
   };
 
+  // Check if event has ended
+  const hasEnded = () => {
+    if (!event.startTime) return false;
+    
+    const eventDate = new Date(event.startTime);
+    const now = new Date();
+    
+    return eventDate < now;
+  };
+
+  const isEventEnded = hasEnded();
+
   // Get total registered members
   const totalRegistered = event.totalRegistered || 0
   
   return (
     <Card
       className={`group relative overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
-        isUpcoming ? "ring-2 ring-amber-400 ring-opacity-50 shadow-xl" : "shadow-lg"
+        isUpcoming ? "ring-4 ring-amber-400 ring-opacity-50 shadow-xl border border-amber-300" : "shadow-lg border border-gray-200"
       } flex flex-col h-[650px] min-h-[650px]`}
     >
       {/* Gradient Background */}
       <div className={`absolute inset-0 bg-gradient-to-br ${getCategoryGradient(event.category)} opacity-5`} />
 
-      {/* Featured/Upcoming Tag */}
-      {isUpcoming && isWithinNextWeek() && (
-        <div className="absolute top-0 right-0 z-10">
-          <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 text-xs font-bold rounded-bl-xl flex items-center gap-1">
-            <Sparkles className="w-3 h-3" />
-            FEATURED
-          </div>
-        </div>
-      )}
-
       {/* Category Color Strip */}
       <div className={`h-2 bg-gradient-to-r ${getCategoryGradient(event.category)}`} />
 
-      <CardHeader className="relative pb-4">
+      <CardHeader className="relative pb-4 pt-8">
+        {/* Featured/Upcoming Tag */}
+        {isUpcoming && isWithinNextWeek() && (
+          <div className="absolute top-0 right-0 z-10">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 text-xs font-bold rounded-bl-xl flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              FEATURED
+            </div>
+          </div>
+        )}
+        
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0 pr-2">
             {/* Fixed height for title with line clamping and tooltip */}
@@ -195,30 +208,44 @@ const EventCard = ({ event, isUpcoming = true, onEdit, onDelete, onRegister }) =
         <div className="pt-2 border-t border-amber-200 mt-3">
           <div className="text-xs text-amber-600 mb-2 font-medium flex items-center">
             <CreditCard className="w-3 h-3 mr-1 flex-shrink-0" />
-            Registration Options:
+            {isEventEnded ? "Event Management" : "Registration Options"}
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              size="sm"
-              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium transition-all hover:scale-105 h-8 text-xs"
-              onClick={() => onRegister(event, "family")}
-            >
-              <Users className="w-3 h-3 mr-1 flex-shrink-0" />
-              Family
-            </Button>
-            <Button
-              size="sm"
-              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium transition-all hover:scale-105 h-8 text-xs"
-              onClick={() => onRegister(event, "individual")}
-            >
-              <User className="w-3 h-3 mr-1 flex-shrink-0" />
-              Individual
-            </Button>
-          </div>
+          
+          {/* Only show registration buttons if event hasn't ended */}
+          {!isEventEnded && (
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <Button
+                size="sm"
+                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium transition-all hover:scale-105 h-8 text-xs"
+                onClick={() => onRegister(event, "family")}
+              >
+                <Users className="w-3 h-3 mr-1 flex-shrink-0" />
+                Family
+              </Button>
+              <Button
+                size="sm"
+                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium transition-all hover:scale-105 h-8 text-xs"
+                onClick={() => onRegister(event, "individual")}
+              >
+                <User className="w-3 h-3 mr-1 flex-shrink-0" />
+                Individual
+              </Button>
+            </div>
+          )}
+          
+          {/* View Registrations button - always show this */}
+          <Button
+            size="sm"
+            className="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-medium transition-all hover:scale-105 h-8 text-xs w-full"
+            onClick={() => onViewRegistrations(event)}
+          >
+            <Eye className="w-3 h-3 mr-1 flex-shrink-0" />
+            View Registrations
+          </Button>
         </div>
       </CardContent>
     </Card>
-  )
-}
+  );
+};
 
-export default EventCard
+export default EventCard;

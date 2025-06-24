@@ -26,12 +26,21 @@ import {
   IndianRupee
 } from "lucide-react"
 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../../components/ui/Card";
+
 import EventCard from "./EventCard"
 import CreateEventModal from "./CreateEventModal"
 import EditEventModal from "./EditEventModal"
 import DeleteEventModal from "./DeleteEventModal"
 import RegistrationModal from "./RegistrationModal"
 import ConfirmationModal from "./ConfirmationModal"
+import RegisteredParishionersModal from "./RegisteredParishionersModal"
 import { generateReceipt } from "./billGenerator"
 import { customStyles } from "./styles"
 
@@ -45,12 +54,14 @@ const Events = ({ navigate }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showRegistrationModal, setShowRegistrationModal] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
+  const [showRegisteredModal, setShowRegisteredModal] = useState(false)
   
   // Registration states
   const [registrationType, setRegistrationType] = useState("")
   const [selectedItems, setSelectedItems] = useState([])
   const [unregisteredFamilies, setUnregisteredFamilies] = useState([])
   const [unregisteredParishioners, setUnregisteredParishioners] = useState([])
+  const [registeredParishioners, setRegisteredParishioners] = useState([])
   
   // Data states
   const [loading, setLoading] = useState(true)
@@ -74,7 +85,7 @@ const Events = ({ navigate }) => {
 
   // Prevent background scrolling when modals are open
   useEffect(() => {
-    const modalOpen = showCreateModal || showEditModal || showDeleteModal || showRegistrationModal || showConfirmation
+    const modalOpen = showCreateModal || showEditModal || showDeleteModal || showRegistrationModal || showConfirmation || showRegisteredModal
     if (modalOpen) {
       document.body.style.overflow = "hidden"
     } else {
@@ -83,7 +94,7 @@ const Events = ({ navigate }) => {
     return () => {
       document.body.style.overflow = "auto"
     }
-  }, [showCreateModal, showEditModal, showDeleteModal, showRegistrationModal, showConfirmation])
+  }, [showCreateModal, showEditModal, showDeleteModal, showRegistrationModal, showConfirmation, showRegisteredModal])
 
   // Fetch events from API
   const fetchEvents = async () => {
@@ -133,7 +144,9 @@ const Events = ({ navigate }) => {
 
   // Toggle sort direction
   const toggleSortDirection = () => {
-    setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+    const newDirection = sortDirection === "asc" ? "desc" : "asc"
+    setSortDirection(newDirection)
+    console.log(`Sort direction changed to: ${newDirection}`) // Debug log
   }
 
   // Apply all filters and sort
@@ -197,28 +210,38 @@ const Events = ({ navigate }) => {
       
       switch (sortField) {
         case "title":
-          valueA = a.title.toLowerCase()
-          valueB = b.title.toLowerCase()
+          valueA = a.title ? a.title.toLowerCase() : ""
+          valueB = b.title ? b.title.toLowerCase() : ""
           break
         case "registrationFees":
-          valueA = a.registrationFees
-          valueB = b.registrationFees
+          valueA = Number(a.registrationFees) || 0
+          valueB = Number(b.registrationFees) || 0
           break
         case "totalRegistered":
-          valueA = a.totalRegistered || 0
-          valueB = b.totalRegistered || 0
+          valueA = Number(a.totalRegistered) || 0
+          valueB = Number(b.totalRegistered) || 0
           break
         case "startTime":
         default:
-          valueA = new Date(a.startTime).getTime()
-          valueB = new Date(b.startTime).getTime()
+          valueA = a.startTime ? new Date(a.startTime).getTime() : 0
+          valueB = b.startTime ? new Date(b.startTime).getTime() : 0
           break
       }
       
+      // Handle string comparison
+      if (typeof valueA === 'string' && typeof valueB === 'string') {
+        if (sortDirection === "asc") {
+          return valueA.localeCompare(valueB)
+        } else {
+          return valueB.localeCompare(valueA)
+        }
+      }
+      
+      // Handle numeric comparison
       if (sortDirection === "asc") {
-        return valueA > valueB ? 1 : -1
+        return valueA - valueB
       } else {
-        return valueA < valueB ? -1 : 1
+        return valueB - valueA
       }
     })
     
@@ -228,11 +251,9 @@ const Events = ({ navigate }) => {
   // Apply filters and sorting
   const filteredEvents = events && Array.isArray(events) ? applyFiltersAndSort(events) : []
 
-  // Separate upcoming and past events
+  // Separate upcoming and past events - preserve the user's sorting
   const upcomingEvents = filteredEvents.filter((event) => !event.startTime || new Date(event.startTime) > new Date())
   const pastEvents = filteredEvents.filter((event) => event.startTime && new Date(event.startTime) <= new Date())
-  // sort pastEvents based on descending order of time
-  pastEvents.sort((a, b) => new Date(b.startTime) - new Date(a.startTime))
 
   const handleCreateEvent = () => {
     setShowCreateModal(true)
@@ -284,6 +305,12 @@ const Events = ({ navigate }) => {
   };
 
   const handleRegistration = async (event, type) => {
+    // Check if event has already ended
+    if (event.startTime && new Date(event.startTime) < new Date()) {
+      error("Cannot register for an event that has already ended");
+      return;
+    }
+    
     setSelectedEvent(event);
     setRegistrationType(type);
     setSelectedItems([]);
@@ -415,6 +442,30 @@ const Events = ({ navigate }) => {
     }
   };
 
+  const handleViewRegistrations = async (event) => {
+    try {
+      setSelectedEvent(event);
+      setShowRegisteredModal(true);
+      
+      // Clear any previous data to prevent stale data from showing
+      setRegisteredParishioners([]);
+      
+      const response = await apiHandler.get(`/api/events/registered/event/${event.id}`);
+      
+      if (response.data && Array.isArray(response.data.parishioners)) {
+        // Filter out any null or invalid entries
+        const validParishioners = response.data.parishioners.filter(p => p && p.id);
+        setRegisteredParishioners(validParishioners);
+      } else {
+        setRegisteredParishioners([]);
+      }
+    } catch (err) {
+      console.error("Error fetching registered parishioners:", err);
+      error("Failed to fetch registered parishioners");
+      setRegisteredParishioners([]);
+    }
+  };
+
   // Get active filter count
   const getActiveFilterCount = () => {
     let count = 0;
@@ -431,222 +482,247 @@ const Events = ({ navigate }) => {
     <Layout>
       <style>{customStyles}</style>
 
-      <div className="container mx-auto p-4">
+      <div className="container mx-auto px-6 py-8">
         {/* Page Header with Search, Filter, and Create */}
         <div className="mb-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-amber-900 flex items-center gap-2">
-                <CalendarIcon className="h-6 w-6 text-amber-700" />
-                Parish Events
-              </h1>
-              <p className="text-amber-700 mt-1">Manage and register for upcoming events</p>
-            </div>
+          <h2 className="text-3xl font-bold text-amber-900 mb-2">
+            Parish Events
+          </h2>
+          <p className="text-amber-700">
+            Manage and register for upcoming events
+          </p>
+        </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative">
-                <Input
-                  placeholder="Search events..."
-                  className="pl-9 w-full sm:w-64"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-amber-500 w-4 h-4" />
-                {searchTerm && (
-                  <button 
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    onClick={() => setSearchTerm("")}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
+        {/* Improved Filters - Matching Sacrament Records style */}
+          <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-amber-200 mb-6">
+            <CardHeader className="bg-gradient-to-r from-amber-100 to-orange-100 border-b border-amber-200">
+              <div className="flex items-center justify-between">
+                <div>
+            <CardTitle className="text-amber-900 text-xl">
+              Event Filters
+            </CardTitle>
+            <CardDescription className="text-amber-700">
+              Find and manage parish events
+            </CardDescription>
+                </div>
+                <Button
+            className="bg-amber-600 hover:bg-amber-700 text-white"
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                >
+            <Filter className="w-4 h-4 mr-2" />
+            {showAdvancedFilters ? "Hide Filters" : "Show Filters"}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row gap-3 mb-4">
+                <div className="flex-1 relative">
+            <Input
+              placeholder="Search events..."
+              className="w-full pl-9 border-gray-200 focus:border-amber-500 h-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-amber-500 w-4 h-4" />
+            {searchTerm && (
+              <button 
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                onClick={() => setSearchTerm("")}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+                </div>
+
+                <Select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="md:w-64 h-10 text-sm"
+            style={{
+              border: "1px solid #E5E7EB", // Very light gray
+              borderRadius: "0.375rem", // Rounded corners
+              padding: "0.5rem", // Padding inside the select
+              outline: "none",
+              boxShadow: "none",
+            }}
+            onFocus={(e) => (e.target.style.borderColor = "#F59E0B")} // Amber-500 on focus
+            onBlur={(e) => (e.target.style.borderColor = "#E5E7EB")} // Very light gray on blur
+                >
+            <option value="">All Categories</option>
+            <option value="MASS">Mass</option>
+            <option value="FEAST_DAY">Feast Day</option>
+            <option value="RETREAT">Retreat</option>
+            <option value="MEETING">Meeting</option>
+            <option value="OTHER">Other</option>
+                </Select>
+
+                <Button 
+            variant="outline" 
+            className="border-gray-200 text-amber-700 hover:bg-amber-50 h-10 text-sm px-4"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+                >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+                </Button>
+
+                <Button 
+            className="bg-amber-600 hover:bg-amber-700 text-white h-10 text-sm px-4" 
+            onClick={handleCreateEvent}
+                >
+            <Plus className="w-4 h-4 mr-2" />
+            Create Event
+                </Button>
               </div>
 
-              <Select
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="w-full sm:w-44"
-              >
-                <option value="">All Categories</option>
-                <option value="MASS">Mass</option>
-                <option value="FEAST_DAY">Feast Day</option>
-                <option value="RETREAT">Retreat</option>
-                <option value="MEETING">Meeting</option>
-                <option value="OTHER">Other</option>
-              </Select>
-
-              <Button 
-                variant="outline" 
-                className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-
-              <Button className="bg-amber-600 hover:bg-amber-700" onClick={handleCreateEvent}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Event
-              </Button>
-            </div>
-          </div>
-          
-          {/* Advanced Filters */}
-          <div className="mb-4 bg-gray-50 rounded-lg p-3 border border-gray-200">
-            <div className="flex items-center justify-between">
-              <Button 
-                variant="ghost" 
-                className="text-gray-700 hover:text-amber-700 hover:bg-amber-50 flex items-center gap-2"
-                onClick={toggleAdvancedFilters}
-              >
-                <Filter className="w-4 h-4" />
-                Advanced Filters
-                <ChevronDown className={`w-4 h-4 transform transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} />
-              </Button>
-              
-              <div className="flex items-center gap-2">
-                {getActiveFilterCount() > 0 && (
-                  <Badge className="bg-amber-100 text-amber-800 border border-amber-300">
-                    {getActiveFilterCount()} active filter{getActiveFilterCount() > 1 ? 's' : ''}
-                  </Badge>
-                )}
-                
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">Sort by:</span>
-                  <Select
-                    value={sortField}
-                    onChange={(e) => setSortField(e.target.value)}
-                    className="text-sm h-8 border-gray-200 w-36"
-                  >
-                    <option value="startTime">Date</option>
-                    <option value="title">Title</option>
-                    <option value="registrationFees">Registration Fees</option>
-                    <option value="totalRegistered">Registrations</option>
-                  </Select>
-                  <Button 
-                    variant="outline" 
-                    className="h-8 border-gray-200 text-gray-700 px-2"
-                    onClick={toggleSortDirection}
-                  >
-                    {sortDirection === "asc" ? (
-                      <div className="flex items-center">
-                        <SortAsc className="w-4 h-4 mr-1" />
-                        <span className="text-xs">Asc</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center">
-                        <SortDesc className="w-4 h-4 mr-1" />
-                        <span className="text-xs">Desc</span>
-                      </div>
-                    )}
-                  </Button>
+              {showAdvancedFilters && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 pt-4 border-t border-amber-200">
+            <div>
+              <h4 className="text-sm font-medium text-amber-700 mb-2 flex items-center">
+                <Calendar className="w-4 h-4 mr-2 text-amber-500" />
+                Date Range
+              </h4>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-amber-600 block mb-1">From</label>
+                  <Input
+              type="date"
+              className="text-sm border-gray-200 focus:border-amber-500"
+              value={dateFilter.startDate}
+              onChange={(e) => setDateFilter({ ...dateFilter, startDate: e.target.value })}
+                  />
                 </div>
-                
-                {getActiveFilterCount() > 0 && (
-                  <Button 
-                    variant="outline" 
-                    className="text-xs h-8 border-red-200 text-red-700 hover:bg-red-50"
-                    onClick={resetFilters}
-                  >
-                    Clear All
-                  </Button>
-                )}
+                <div>
+                  <label className="text-xs text-amber-600 block mb-1">To</label>
+                  <Input
+              type="date"
+              className="text-sm border-gray-200 focus:border-amber-500"
+              value={dateFilter.endDate}
+              onChange={(e) => setDateFilter({ ...dateFilter, endDate: e.target.value })}
+                  />
+                </div>
               </div>
             </div>
             
-            {showAdvancedFilters && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-200">
+            <div>
+              <h4 className="text-sm font-medium text-amber-700 mb-2 flex items-center">
+                <IndianRupee className="w-4 h-4 mr-2 text-amber-500" />
+                Registration Fee Range
+              </h4>
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
-                    <Calendar className="w-4 h-4 mr-2 text-gray-500" />
-                    Date Range
-                  </h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-xs text-gray-500 block mb-1">From</label>
-                      <Input
-                        type="date"
-                        className="text-sm"
-                        value={dateFilter.startDate}
-                        onChange={(e) => setDateFilter({ ...dateFilter, startDate: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 block mb-1">To</label>
-                      <Input
-                        type="date"
-                        className="text-sm"
-                        value={dateFilter.endDate}
-                        onChange={(e) => setDateFilter({ ...dateFilter, endDate: e.target.value })}
-                      />
-                    </div>
-                  </div>
+                  <label className="text-xs text-amber-600 block mb-1">Min (Rs)</label>
+                  <Input
+              type="number"
+              className="text-sm border-gray-200 focus:border-amber-500"
+              value={feeFilter.min}
+              onChange={(e) => setFeeFilter({ ...feeFilter, min: e.target.value })}
+              placeholder="0"
+                  />
                 </div>
-                
                 <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
-                    <IndianRupee className="w-4 h-4 mr-2 text-gray-500" />
-                    Registration Fee Range
-                  </h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-xs text-gray-500 block mb-1">Min (₹)</label>
-                      <Input
-                        type="number"
-                        className="text-sm"
-                        value={feeFilter.min}
-                        onChange={(e) => setFeeFilter({ ...feeFilter, min: e.target.value })}
-                        placeholder="0"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 block mb-1">Max (₹)</label>
-                      <Input
-                        type="number"
-                        className="text-sm"
-                        value={feeFilter.max}
-                        onChange={(e) => setFeeFilter({ ...feeFilter, max: e.target.value })}
-                        placeholder="1000"
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
-                    <Users className="w-4 h-4 mr-2 text-gray-500" />
-                    Registration Count
-                  </h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-xs text-gray-500 block mb-1">Min</label>
-                      <Input
-                        type="number"
-                        className="text-sm"
-                        value={registrationFilter.min}
-                        onChange={(e) => setRegistrationFilter({ ...registrationFilter, min: e.target.value })}
-                        placeholder="0"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 block mb-1">Max</label>
-                      <Input
-                        type="number"
-                        className="text-sm"
-                        value={registrationFilter.max}
-                        onChange={(e) => setRegistrationFilter({ ...registrationFilter, max: e.target.value })}
-                        placeholder="100"
-                      />
-                    </div>
-                  </div>
+                  <label className="text-xs text-amber-600 block mb-1">Max (Rs)</label>
+                  <Input
+              type="number"
+              className="text-sm border-gray-200 focus:border-amber-500"
+              value={feeFilter.max}
+              onChange={(e) => setFeeFilter({ ...feeFilter, max: e.target.value })}
+              placeholder="1000"
+                  />
                 </div>
               </div>
-            )}
-          </div>
-        </div>
+            </div>
+            
+            <div>
+              <h4 className="text-sm font-medium text-amber-700 mb-2 flex items-center">
+                <Users className="w-4 h-4 mr-2 text-amber-500" />
+                Registration Count
+              </h4>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-amber-600 block mb-1">Min</label>
+                  <Input
+              type="number"
+              className="text-sm border-gray-200 focus:border-amber-500"
+              value={registrationFilter.min}
+              onChange={(e) => setRegistrationFilter({ ...registrationFilter, min: e.target.value })}
+              placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-amber-600 block mb-1">Max</label>
+                  <Input
+              type="number"
+              className="text-sm border-gray-200 focus:border-amber-500"
+              value={registrationFilter.max}
+              onChange={(e) => setRegistrationFilter({ ...registrationFilter, max: e.target.value })}
+              placeholder="100"
+                  />
+                </div>
+              </div>
+            </div>
 
-        {/* Loading State */}
+            <div className="md:col-span-3">
+              <div className="flex items-center justify-between mt-4">
+                <div className="flex items-center gap-2">
+                  {getActiveFilterCount() > 0 && (
+              <Badge className="bg-amber-100 text-amber-800 border border-amber-300">
+                {getActiveFilterCount()} active filter{getActiveFilterCount() > 1 ? 's' : ''}
+              </Badge>
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+              <span className="text-sm text-amber-700">Sort by:</span>
+              <Select
+                value={sortField}
+                onChange={(e) => setSortField(e.target.value)}
+                className="text-sm h-8 border-gray-200 focus:border-amber-500 w-36"
+              >
+                <option value="startTime">Date</option>
+                <option value="title">Title</option>
+                <option value="registrationFees">Registration Fees</option>
+                <option value="totalRegistered">Registrations</option>
+              </Select>
+              <Button 
+                variant="outline" 
+                className="h-8 border-gray-200 text-amber-700 px-2 hover:bg-amber-50"
+                onClick={toggleSortDirection}
+                title={`Currently sorting ${sortDirection === "asc" ? "ascending" : "descending"}. Click to toggle.`}
+              >
+                {sortDirection === "asc" ? (
+                  <div className="flex items-center">
+                    <SortAsc className="w-4 h-4 mr-1" />
+                    <span className="text-xs">Asc</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    <SortDesc className="w-4 h-4 mr-1" />
+                    <span className="text-xs">Desc</span>
+                  </div>
+                )}
+              </Button>
+                  </div>
+                  
+                  {getActiveFilterCount() > 0 && (
+              <Button 
+                variant="outline" 
+                className="border-gray-200 text-amber-700 hover:bg-amber-50"
+                onClick={resetFilters}
+              >
+                Clear All Filters
+              </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Loading State */}
         {loading && (
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-600"></div>
@@ -700,6 +776,7 @@ const Events = ({ navigate }) => {
                   onEdit={handleEditEvent}
                   onDelete={handleDeleteEvent}
                   onRegister={handleRegistration}
+                  onViewRegistrations={handleViewRegistrations}
                 />
               ))}
             </div>
@@ -724,6 +801,7 @@ const Events = ({ navigate }) => {
                   onEdit={handleEditEvent}
                   onDelete={handleDeleteEvent}
                   onRegister={handleRegistration}
+                  onViewRegistrations={handleViewRegistrations}
                 />
               ))}
             </div>
@@ -796,6 +874,16 @@ const Events = ({ navigate }) => {
         onConfirm={handleRegistrationSuccess}
         calculateTotal={calculateTotal}
         getTotalMembers={getTotalMembers}
+      />
+
+      <RegisteredParishionersModal
+        show={showRegisteredModal}
+        event={selectedEvent}
+        registeredParishioners={registeredParishioners}
+        onClose={() => {
+          setShowRegisteredModal(false);
+          setSelectedEvent(null);
+        }}
       />
     </Layout>
   )
