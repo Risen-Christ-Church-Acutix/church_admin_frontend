@@ -158,6 +158,8 @@ const FamilyDetails = () => {
     setEditData({
       id: parishioner.id,
       name: parishioner.name,
+      dob: parishioner.dob ? new Date(parishioner.dob).toISOString().split('T')[0] : "",
+      gender: parishioner.gender || "",
       completedSacraments: parishioner.sacraments || [],
     });
     setIsEditing(true);
@@ -180,9 +182,9 @@ const FamilyDetails = () => {
       );
       success(`${parishioner.name} has been marked as inactive.`);
       fetchData();
-    } catch (error){
-        error.response?.data?.message || "An error occurred while inactivating."
-        return;
+    } catch (error) {
+      error(error.response?.data?.message || "An error occurred while inactivating.");
+      return;
     }
   };
 
@@ -192,11 +194,16 @@ const FamilyDetails = () => {
       return;
     }
 
-    let payload = {};
+    let payload = {
+      parishionerId: editData.id,
+      name: editData.name,
+      DOB: editData.dob,
+      gender: editData.gender,
+    };
 
     if (newSacrament && newPriest?.id) {
       payload = {
-        parishionerId: editData.id,
+        ...payload,
         type: newSacrament,
         date: Date.now(),
         priestId: newPriest?.id,
@@ -208,7 +215,7 @@ const FamilyDetails = () => {
         "/api/parishioners/updateParishioner",
         payload
       );
-      if (newPriest?.id) {
+      if (newSacrament && newPriest?.id) {
         const sacramentResponse = await axiosInstance.post(
           "/api/parishioners/createSacramentRecord",
           {
@@ -328,6 +335,35 @@ const FamilyDetails = () => {
                     }
                     className="w-[330px] border border-amber-300 rounded px-3 py-2"
                   />
+                </div>
+
+                {/* Date of Birth Input */}
+                <div className="mb-3">
+                  <label className="block text-amber-700 mb-1">Date of Birth</label>
+                  <input
+                    type="date"
+                    value={editData.dob}
+                    onChange={(e) =>
+                      setEditData((prev) => ({ ...prev, dob: e.target.value }))
+                    }
+                    className="w-[330px] border border-amber-300 rounded px-3 py-2"
+                  />
+                </div>
+
+                {/* Gender Input */}
+                <div className="mb-3">
+                  <label className="block text-amber-700 mb-1">Gender</label>
+                  <select
+                    value={editData.gender}
+                    onChange={(e) =>
+                      setEditData((prev) => ({ ...prev, gender: e.target.value }))
+                    }
+                    className="w-[330px] border border-amber-300 rounded px-3 py-2"
+                  >
+                    <option value="">Select gender</option>
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                  </select>
                 </div>
 
                 {/* Previously Completed Sacraments (read-only or editable list) */}
