@@ -1,12 +1,72 @@
-# React + Vite
+# Church Administration Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is the frontend for the Church Administration Software, built with React.js as a Single Page Application (SPA). It allows parish staff to manage users, events, sacraments, and finances.
 
-Currently, two official plugins are available:
+## 🛠️ Technologies Used
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- React.js
+- Vite
+- Tailwind CSS
+- Axios (for API requests)
+- Docker & Docker Compose
 
-## Expanding the ESLint configuration
+## 🚀 Getting Started (Local Development)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Prerequisites
+
+- Node.js (v14 or higher)
+- Docker & Docker Compose
+- Git
+
+
+### Installation
+#### After cloning
+
+```bash
+# Navigate to the frontend folder
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start the development server
+npm run dev
+```
+
+## 🐳 Docker Deployment
+
+Ensure you're in the root directory (where `docker-compose.yml` is located):
+
+```bash
+docker-compose up -d --build
+```
+
+To stop:
+
+```bash
+docker-compose down
+```
+
+## ⚙️ Environment Variables
+
+Create the following environment files:
+
+### `.env`
+
+```env
+VITE_API_URL=https://church-admin-backend.onrender.com/
+VITE_NON_PRODUCTION_API_URL=http://localhost:4000/
+```
+
+### `.env.production`
+
+```env
+VITE_API_URL=/
+```
+
+## 📌 Notes
+
+- Communicates with backend via RESTful API
+- Served through Nginx in production
+- UI not fully optimized for mobile yet
+- Event reminders and certificate generation are pending features
