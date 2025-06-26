@@ -11,7 +11,13 @@ import {
 } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { Input } from "../components/ui/Input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/Select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/Select";
 import DataTable from "../components/DataTable";
 import Layout from "../components/Layout";
 import { useToaster } from "../components/Toaster";
@@ -56,7 +62,7 @@ const SacramentRecords = () => {
         priestId: s.priest?.id || "",
         priestName: s.priest?.name || "N/A",
       }));
-      console.log("Fetched sacraments with priestIds:", transformedData.map(s => ({ id: s.id, priestId: s.priestId })));
+      console.log("Fetched sacraments with priestIds:", transformedData);
       setSacraments(transformedData);
       setFilteredSacraments(transformedData);
     } catch (err) {
@@ -68,7 +74,10 @@ const SacramentRecords = () => {
     try {
       const res = await axiosInstance.get("/api/parishioners/getPriests");
       setPriests(res.data);
-      console.log("Fetched priests with IDs:", res.data.map(p => ({ id: p.id, name: p.name })));
+      console.log(
+        "Fetched priests with IDs:",
+        res.data.map((p) => ({ id: p.id, name: p.name }))
+      );
     } catch (err) {
       error("Failed to fetch priests.");
     }
@@ -76,8 +85,12 @@ const SacramentRecords = () => {
 
   const getDateRangeDisplay = () => {
     if (!filters.startDate && !filters.endDate) return "All dates";
-    const from = filters.startDate ? new Date(filters.startDate).toLocaleDateString() : "Start";
-    const to = filters.endDate ? new Date(filters.endDate).toLocaleDateString() : "End";
+    const from = filters.startDate
+      ? new Date(filters.startDate).toLocaleDateString()
+      : "Start";
+    const to = filters.endDate
+      ? new Date(filters.endDate).toLocaleDateString()
+      : "End";
     return `${from} to ${to}`;
   };
 
@@ -89,7 +102,9 @@ const SacramentRecords = () => {
     }
 
     if (filters.priestId) {
-      result = result.filter((s) => String(s.priestId) === String(filters.priestId));
+      result = result.filter(
+        (s) => String(s.priestId) === String(filters.priestId)
+      );
     }
 
     if (filters.startDate) {
@@ -135,10 +150,12 @@ const SacramentRecords = () => {
     setEditData({
       id: sacrament.id,
       type: sacrament.type,
+      date: sacrament.date,
       priestId: sacrament.priestId,
       priestName: sacrament.priestName,
       parishionerId: sacrament.parishionerId,
     });
+    console.log(editData);
     setIsEditing(true);
   };
 
@@ -150,6 +167,7 @@ const SacramentRecords = () => {
         priest: {
           id: editData.priestId,
         },
+        date:editData.date,
       });
       success("Sacrament updated successfully.");
       setIsEditing(false);
@@ -261,7 +279,9 @@ const SacramentRecords = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold mb-1">{countByType("BAPTISM")}</div>
+              <div className="text-3xl font-bold mb-1">
+                {countByType("BAPTISM")}
+              </div>
               <p className="text-blue-100 text-sm">Total recorded</p>
             </CardContent>
           </Card>
@@ -272,7 +292,9 @@ const SacramentRecords = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold mb-1">{countByType("FIRST_COMMUNION")}</div>
+              <div className="text-3xl font-bold mb-1">
+                {countByType("FIRST_COMMUNION")}
+              </div>
               <p className="text-green-100 text-sm">Total recorded</p>
             </CardContent>
           </Card>
@@ -283,7 +305,9 @@ const SacramentRecords = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold mb-1">{countByType("CONFIRMATION")}</div>
+              <div className="text-3xl font-bold mb-1">
+                {countByType("CONFIRMATION")}
+              </div>
               <p className="text-purple-100 text-sm">Total recorded</p>
             </CardContent>
           </Card>
@@ -294,7 +318,9 @@ const SacramentRecords = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold mb-1">{countByType("MARRIAGE")}</div>
+              <div className="text-3xl font-bold mb-1">
+                {countByType("MARRIAGE")}
+              </div>
               <p className="text-red-100 text-sm">Total recorded</p>
             </CardContent>
           </Card>
@@ -305,7 +331,9 @@ const SacramentRecords = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold mb-1">{countByType("FUNERAL")}</div>
+              <div className="text-3xl font-bold mb-1">
+                {countByType("FUNERAL")}
+              </div>
               <p className="text-gray-100 text-sm">Total recorded</p>
             </CardContent>
           </Card>
@@ -316,7 +344,9 @@ const SacramentRecords = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold mb-1">{filteredSacraments.length}</div>
+              <div className="text-3xl font-bold mb-1">
+                {filteredSacraments.length}
+              </div>
               <p className="text-gray-100 text-sm">Total recorded</p>
             </CardContent>
           </Card>
@@ -330,7 +360,8 @@ const SacramentRecords = () => {
                   Filters
                 </CardTitle>
                 <CardDescription className="text-amber-700">
-                  Refine the sacrament records list | Date Range: {getDateRangeDisplay()}
+                  Refine the sacrament records list | Date Range:{" "}
+                  {getDateRangeDisplay()}
                 </CardDescription>
               </div>
               <Button
@@ -359,7 +390,10 @@ const SacramentRecords = () => {
                     <SelectContent>
                       <SelectItem value="">All Types</SelectItem>
                       {allSacraments.map((sacrament) => (
-                        <SelectItem key={sacrament.value} value={sacrament.value}>
+                        <SelectItem
+                          key={sacrament.value}
+                          value={sacrament.value}
+                        >
                           {sacrament.label}
                         </SelectItem>
                       ))}
@@ -370,7 +404,9 @@ const SacramentRecords = () => {
                   <label className="block text-amber-700 mb-1">Priest</label>
                   <Select
                     value={filters.priestId}
-                    onValueChange={(value) => handleFilterChange("priestId", value)}
+                    onValueChange={(value) =>
+                      handleFilterChange("priestId", value)
+                    }
                   >
                     <SelectTrigger className="border-amber-300 focus:border-amber-500">
                       <SelectValue placeholder="All Priests" />
@@ -392,7 +428,9 @@ const SacramentRecords = () => {
                   <Input
                     type="date"
                     value={filters.startDate}
-                    onChange={(e) => handleFilterChange("startDate", e.target.value)}
+                    onChange={(e) =>
+                      handleFilterChange("startDate", e.target.value)
+                    }
                     className="border-amber-300 focus:border-amber-500 text-black"
                   />
                 </div>
@@ -401,7 +439,9 @@ const SacramentRecords = () => {
                   <Input
                     type="date"
                     value={filters.endDate}
-                    onChange={(e) => handleFilterChange("endDate", e.target.value)}
+                    onChange={(e) =>
+                      handleFilterChange("endDate", e.target.value)
+                    }
                     className="border-amber-300 focus:border-amber-500 text-black"
                   />
                 </div>
@@ -413,7 +453,9 @@ const SacramentRecords = () => {
                 <Input
                   type="text"
                   value={filters.parishionerName}
-                  onChange={(e) => handleFilterChange("parishionerName", e.target.value)}
+                  onChange={(e) =>
+                    handleFilterChange("parishionerName", e.target.value)
+                  }
                   placeholder="Enter parishioner name"
                   className="border-amber-300 focus:border-amber-500 text-black"
                 />
@@ -454,11 +496,15 @@ const SacramentRecords = () => {
             {isEditing && (
               <div className="mb-6 p-4 border border-amber-300 rounded bg-amber-50">
                 <h3 className="text-amber-900 text-lg mb-3">Edit Sacrament</h3>
+
+                {/* Sacrament Type */}
                 <div className="mb-3">
                   <label className="block text-amber-700 mb-1">Type</label>
                   <Select
                     value={editData.type}
-                    onValueChange={(value) => setEditData((prev) => ({ ...prev, type: value }))}
+                    onValueChange={(value) =>
+                      setEditData((prev) => ({ ...prev, type: value }))
+                    }
                   >
                     <SelectTrigger className="w-[330px] border-amber-300 focus:border-amber-500">
                       <SelectValue placeholder="Select sacrament" />
@@ -466,13 +512,18 @@ const SacramentRecords = () => {
                     <SelectContent>
                       <SelectItem value="">Select sacrament</SelectItem>
                       {availableSacraments.map((sacrament) => (
-                        <SelectItem key={sacrament.value} value={sacrament.value}>
+                        <SelectItem
+                          key={sacrament.value}
+                          value={sacrament.value}
+                        >
                           {sacrament.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Priest Selection */}
                 <div className="mb-3">
                   <label className="block text-amber-700 mb-1">Priest</label>
                   <Select
@@ -499,6 +550,28 @@ const SacramentRecords = () => {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Date Input */}
+                <div className="mb-3">
+                  <label className="block text-amber-700 mb-1">Date</label>
+                  <input
+                    type="date"
+                    className="w-[330px] border border-amber-300 rounded px-3 py-2 focus:outline-none focus:border-amber-500"
+                    value={
+                      editData.date
+                        ? new Date(editData.date).toISOString().slice(0, 10)
+                        : ""
+                    }
+                    onChange={(e) =>
+                      setEditData((prev) => ({
+                        ...prev,
+                        date: new Date(e.target.value).toISOString(),
+                      }))
+                    }
+                  />
+                </div>
+
+                {/* Buttons */}
                 <div className="flex space-x-4">
                   <Button
                     className="bg-amber-600 hover:bg-amber-700 text-white"
@@ -518,6 +591,7 @@ const SacramentRecords = () => {
                 </div>
               </div>
             )}
+
             {filteredSacraments.length === 0 ? (
               <div className="text-center text-amber-600">
                 No records match the selected filters.
