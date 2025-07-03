@@ -66,8 +66,10 @@ const ParishionerManagement = () => {
     } else {
       if (window.confirm(`Are you sure you want to delete ${group.name}?`)) {
         try {
-          await axiosInstance.delete("/api/parishioners/deleteBCCGroup",{
-            id:group.id
+          await axiosInstance.delete("/api/parishioners/deleteBCCGroup", {
+            data: {
+              id: group.id
+            }
           });
           success(`${group.name} has been deleted successfully.`);
           fetchData();
@@ -112,16 +114,6 @@ const ParishionerManagement = () => {
       header: "No. of Families",
       className: "text-center align-middle",
       cellClassName: "text-center align-middle",
-      render: (value, item) => (
-        <div className="flex justify-center items-center">
-          <span
-            className="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer hover:underline"
-            onClick={() => navigate(`/parishioners/groups/${item.id}`)}
-          >
-            {value}
-          </span>
-        </div>
-      ),
     },
   ];
 

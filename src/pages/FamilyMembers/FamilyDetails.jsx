@@ -41,17 +41,19 @@ const FamilyDetails = () => {
 
   useEffect(() => {
     fetchData();
-    setFamilyData((prev) => ({
-      ...prev,
-      bccGroup: {
-        id: groupId,
-        name: groupName,
-      },
-      phone: currentFamily.phone,
-      address: currentFamily.address,
-    }));
-
-  }, []);
+    if (currentFamily) {
+      setFamilyData({
+        bccGroup: {
+          id: groupId,
+          name: groupName,
+        },
+        phone: currentFamily.phone || "",
+        address: currentFamily.address || "",
+        familyHeadName: currentFamily.headOfFamily || "",
+      });
+      console.log(currentFamily);
+    }
+  }, [currentFamily, groupId, groupName]);
 
   const fetchData = async () => {
     try {
@@ -163,6 +165,8 @@ const FamilyDetails = () => {
     setEditData({
       id: parishioner.id,
       name: parishioner.name,
+      dob: parishioner.dob ? new Date(parishioner.dob).toISOString().split('T')[0] : "",
+      gender: parishioner.gender || "",
       completedSacraments: parishioner.sacraments || [],
     });
     setIsEditing(true);
@@ -185,25 +189,28 @@ const FamilyDetails = () => {
       );
       success(`${parishioner.name} has been marked as inactive.`);
       fetchData();
-    } catch (err) {
-      error(
-        err.response?.data?.message || "An error occurred while inactivating."
-      );
+    } catch (error) {
+      error(error.response?.data?.message || "An error occurred while inactivating.");
       return;
     }
   };
+
   const handleEditSubmit = async () => {
     if (!editData.name.trim()) {
       error("Name must be filled.");
       return;
     }
 
-    let payload = {};
+    let payload = {
+      parishionerId: editData.id,
+      name: editData.name,
+      DOB: editData.dob,
+      gender: editData.gender,
+    };
 
-    // Include new sacrament details only if type is provided
     if (newSacrament && newPriest?.id) {
       payload = {
-        parishionerId: editData.id,
+        ...payload,
         type: newSacrament,
         date: Date.now(),
         priestId: newPriest?.id,
@@ -215,14 +222,13 @@ const FamilyDetails = () => {
         "/api/parishioners/updateParishioner",
         payload
       );
-      if (newPriest?.id) {
+      if (newSacrament && newPriest?.id) {
         const sacramentResponse = await axiosInstance.post(
           "/api/parishioners/createSacramentRecord",
           {
             parishionerId: editData.id,
             type: newSacrament,
             date: new Date().toISOString(),
-
             priestId: newPriest.id,
           }
         );
@@ -241,6 +247,21 @@ const FamilyDetails = () => {
       setIsSaving(false);
     }
   };
+
+  // List of all possible sacraments
+  const allSacraments = [
+    { value: "BAPTISM", label: "Baptism" },
+    { value: "FIRST_COMMUNION", label: "First Communion" },
+    { value: "CONFIRMATION", label: "Confirmation" },
+    { value: "MARRIAGE", label: "Marriage" },
+    { value: "FUNERAL", label: "Funeral" },
+  ];
+
+  // Filter out sacraments that have already been completed
+  const availableSacraments = allSacraments.filter(
+    (sacrament) =>
+      !editData.completedSacraments?.some((s) => s.type === sacrament.value)
+  );
 
   return (
     <Layout>
@@ -323,6 +344,35 @@ const FamilyDetails = () => {
                   />
                 </div>
 
+                {/* Date of Birth Input */}
+                <div className="mb-3">
+                  <label className="block text-amber-700 mb-1">Date of Birth</label>
+                  <input
+                    type="date"
+                    value={editData.dob}
+                    onChange={(e) =>
+                      setEditData((prev) => ({ ...prev, dob: e.target.value }))
+                    }
+                    className="w-[330px] border border-amber-300 rounded px-3 py-2"
+                  />
+                </div>
+
+                {/* Gender Input */}
+                <div className="mb-3">
+                  <label className="block text-amber-700 mb-1">Gender</label>
+                  <select
+                    value={editData.gender}
+                    onChange={(e) =>
+                      setEditData((prev) => ({ ...prev, gender: e.target.value }))
+                    }
+                    className="w-[330px] border border-amber-300 rounded px-3 py-2"
+                  >
+                    <option value="">Select gender</option>
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                  </select>
+                </div>
+
                 {/* Previously Completed Sacraments (read-only or editable list) */}
                 <div className="mb-3">
                   <label className="block text-amber-700 mb-1">
@@ -361,11 +411,11 @@ const FamilyDetails = () => {
                     className="w-[330px] border border-amber-300 rounded px-3 py-2"
                   >
                     <option value="">Select sacrament</option>
-                    <option value="BAPTISM">Baptism</option>
-                    <option value="FIRST_COMMUNION">First Communion</option>
-                    <option value="CONFIRMATION">Confirmation</option>
-                    <option value="MARRIAGE">Marriage</option>
-                    <option value="DEATH">Death</option>
+                    {availableSacraments.map((sacrament) => (
+                      <option key={sacrament.value} value={sacrament.value}>
+                        {sacrament.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

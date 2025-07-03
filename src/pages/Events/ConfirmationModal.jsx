@@ -1,5 +1,5 @@
 import { Button } from "../../components/ui/Button"
-import { X, Check, AlertTriangle, Calendar, Users, DollarSign } from "lucide-react"
+import { X, Check, AlertTriangle, Calendar, Users, IndianRupee } from "lucide-react"
 import { useEffect, useState } from "react"
 import apiHandler from "../../api-handler/api-handler"
 import { useToaster } from "../../components/Toaster"
@@ -58,37 +58,19 @@ const ConfirmationModal = ({
       console.log("Registration response:", response.data);
       
       // Only generate receipt for paid events
-      if (!isFreeEvent) {
+      if (!isFreeEvent && response.data.receiptNumber) {
         try {
-          // For family registration, use family data from response if available
-          let receiptItems = [...selectedItems]; // Create a copy to avoid reference issues
+          // Fetch receipt data from backend using the receipt number
+          const receiptResponse = await apiHandler.get(`/api/events/receipt/${response.data.receiptNumber}`);
+          const receiptData = receiptResponse.data;
           
-          if (registrationType === "family" && response.data.family) {
-            console.log("Using family data from response:", response.data.family);
-            receiptItems = [{
-              id: selectedItems[0].id,
-              headOfFamily: response.data.family.headOfFamily || selectedItems[0].headOfFamily,
-              memberCount: response.data.family.memberCount || selectedItems[0].memberCount,
-              parishioners: response.data.family.parishioners || []
-            }];
-          }
+          console.log("Receipt data from backend:", receiptData);
           
-          // Generate and download receipt
-          const receiptData = {
-            event,
-            registrationType,
-            items: receiptItems,
-            totalMembers: getTotalMembers(),
-            totalAmount: calculateTotal(),
-            receiptId: response.data.registrationId || `REG-${Date.now()}`,
-            date: new Date().toISOString()
-          };
-          
-          console.log("Receipt data:", receiptData);
+          // Generate and download receipt using backend data
           generateReceipt(receiptData);
           success("Registration successful! Receipt downloaded.");
         } catch (receiptErr) {
-          console.error("Error generating receipt:", receiptErr);
+          console.error("Error fetching/generating receipt:", receiptErr);
           success("Registration successful, but there was an error generating the receipt.");
         }
       } else {
@@ -175,13 +157,13 @@ const ConfirmationModal = ({
               
               <div className="border border-amber-200 rounded-lg p-4">
                 <div className="flex items-center text-amber-800 font-medium mb-2">
-                  <DollarSign className="w-4 h-4 mr-2" />
+                  <IndianRupee className="w-4 h-4 mr-2" />
                   Payment Details
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <p><span className="text-gray-600">Registration Fee:</span> Rs. {event?.registrationFees} per person</p>
+                  <p><span className="text-gray-600">Registration Fee:</span> Rs {event?.registrationFees} per person</p>
                   <p><span className="text-gray-600">Total Members:</span> {getTotalMembers()}</p>
-                  <p className="col-span-2"><span className="text-gray-600">Total Amount:</span> <span className="font-medium text-amber-900">Rs. {calculateTotal()}</span></p>
+                  <p className="col-span-2"><span className="text-gray-600">Total Amount:</span> <span className="font-medium text-amber-900">Rs {calculateTotal()}</span></p>
                 </div>
               </div>
             </div>

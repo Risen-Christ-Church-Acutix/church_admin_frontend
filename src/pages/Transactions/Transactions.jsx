@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "../../components/ui/Button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
@@ -9,10 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import DataTable from "../../components/DataTable";
 import Layout from "../../components/Layout";
 import { useToaster } from "../../components/Toaster";
-import { Plus, Filter, Download, FileText, Calendar, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
+import { Plus, Filter, Download, FileText, Calendar, TrendingUp, TrendingDown } from "lucide-react";
 import AddTransactionForm from "./AddTransactionForm";
-import UpdateTransactionForm from "./UpdateTransactionForm"; // Added import
+import UpdateTransactionForm from "./UpdateTransactionForm";
 import axiosInstance from "../../api-handler/api-handler";
+import GeneratePDFModal from "./GeneratePDF";
+import GenerateExcelModal from "./GenerateExcel";
 
 const Transactions = () => {
   const { success, error } = useToaster();
@@ -26,13 +28,34 @@ const Transactions = () => {
     period: "",
   });
   const [showForm, setShowForm] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState(null); // Added state
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [shouldFetch, setShouldFetch] = useState(true);
+  const addFormRef = useRef(null);
+
+  const getDateRangeDisplay = () => {
+    if (!filters.dateFrom && !filters.dateTo && !filters.period) return "All dates";
+    if (filters.period) {
+      const today = new Date();
+      let dateFrom = new Date(today);
+      if (filters.period === "1_MONTH") dateFrom.setMonth(today.getMonth() - 1);
+      else if (filters.period === "3_MONTHS") dateFrom.setMonth(today.getMonth() - 3);
+      else if (filters.period === "6_MONTHS") dateFrom.setMonth(today.getMonth() - 6);
+      else if (filters.period === "12_MONTHS") dateFrom.setFullYear(today.getFullYear() - 1);
+      return `${dateFrom.toLocaleDateString()} to ${today.toLocaleDateString()}`;
+    }
+    const from = filters.dateFrom ? new Date(filters.dateFrom).toLocaleDateString() : "Start";
+    const to = filters.dateTo ? new Date(filters.dateTo).toLocaleDateString() : "End";
+    return `${from} to ${to}`;
+  };
 
   const fetchTransactions = useCallback(async () => {
     try {
       setIsLoading(true);
+      setHasError(false);
       const response = await axiosInstance.get("/api/transactions/all");
       const sortedTransactions = response.data.transactions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       const mappedTransactions = sortedTransactions.map((t, index) => ({
@@ -47,18 +70,25 @@ const Transactions = () => {
         customCategory: t.customCategory || null,
       }));
       setTransactions(mappedTransactions);
-      success("Transactions fetched successfully");
     } catch (err) {
-      error("Failed to fetch transactions");
+      setHasError(true);
+      error("Failed to fetch transactions. Please try again.");
       console.error(err);
     } finally {
       setIsLoading(false);
+      setShouldFetch(false);
     }
-  }, []);
+  }, [error]);
 
   useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
+    if (shouldFetch) {
+      fetchTransactions();
+    }
+  }, [shouldFetch, fetchTransactions]);
+
+  const handleRetry = () => {
+    setShouldFetch(true);
+  };
 
   const transactionColumns = [
     { key: "sno", header: "S.No", className: "w-16" },
@@ -71,8 +101,7 @@ const Transactions = () => {
             item.transactionType === "INCOME" ? "text-green-600" : "text-red-600"
           }`}
         >
-          <DollarSign className="w-3 h-3 mr-1" />
-          {value.toFixed(2)}
+          ₹{value.toFixed(2)}
         </div>
       ),
     },
@@ -131,6 +160,8 @@ const Transactions = () => {
           dateFrom.setMonth(today.getMonth() - 3);
         } else if (value === "6_MONTHS") {
           dateFrom.setMonth(today.getMonth() - 6);
+        } else if (value === "12_MONTHS") {
+          dateFrom.setFullYear(today.getFullYear() - 1);
         }
 
         newFilters.dateFrom = dateFrom.toISOString().split("T")[0];
@@ -155,6 +186,11 @@ const Transactions = () => {
       amountMax: "",
       period: "",
     });
+    setShowAdvancedFilters(false);
+  };
+
+  const applyFilters = () => {
+    // Trigger filter application (already handled by filteredTransactions)
   };
 
   const handleEditTransaction = (transaction) => {
@@ -168,7 +204,7 @@ const Transactions = () => {
         await axiosInstance.delete(`/api/transactions/delete`, {
           data: { id: transaction.id },
         });
-        await fetchTransactions();
+        setShouldFetch(true);
         success(`Transaction #${transaction.sno} has been deleted successfully.`);
       } catch (err) {
         console.error("Error deleting transaction:", err.message, err.response?.data);
@@ -177,17 +213,19 @@ const Transactions = () => {
     }
   };
 
-  const handleGeneratePDFReport = () => {
-    success("PDF report generation will be implemented");
-  };
+  const handleAddTransactionSuccess = useCallback(() => {
+    setShouldFetch(true);
+  }, []);
 
-  const handleGenerateExcelReport = () => {
-    success("Excel report generation will be implemented");
+  const handleAddButtonClick = () => {
+    setSelectedTransaction(null);
+    setShowForm(true);
+    setTimeout(() => {
+      if (addFormRef.current) {
+        addFormRef.current.focusForm();
+      }
+    }, 0);
   };
-
-  const handleAddTransactionSuccess = useCallback(async () => {
-    await fetchTransactions();
-  }, [fetchTransactions]);
 
   const filteredTransactions = transactions.filter((transaction) => {
     let matches = true;
@@ -245,7 +283,21 @@ const Transactions = () => {
           <div className="text-center text-amber-700">Loading transactions...</div>
         )}
 
-        {!isLoading && showForm && (
+        {hasError && !isLoading && (
+          <Card className="bg-red-50 border-red-200 mb-6">
+            <CardContent className="p-6 text-center">
+              <p className="text-red-700 mb-4">Failed to load transactions. Please try again.</p>
+              <Button
+                onClick={handleRetry}
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                Retry
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {!isLoading && !hasError && showForm && (
           <>
             {selectedTransaction ? (
               <UpdateTransactionForm
@@ -258,6 +310,7 @@ const Transactions = () => {
               />
             ) : (
               <AddTransactionForm
+                ref={addFormRef}
                 onClose={() => setShowForm(false)}
                 onSuccess={handleAddTransactionSuccess}
               />
@@ -265,7 +318,7 @@ const Transactions = () => {
           </>
         )}
 
-        {!isLoading && (
+        {!isLoading && !hasError && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
@@ -276,7 +329,7 @@ const Transactions = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold mb-1">${totalIncome.toFixed(2)}</div>
+                  <div className="text-3xl font-bold mb-1">₹{totalIncome.toFixed(2)}</div>
                   <p className="text-green-100 text-sm">This period</p>
                 </CardContent>
               </Card>
@@ -289,7 +342,7 @@ const Transactions = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold mb-1">${totalExpense.toFixed(2)}</div>
+                  <div className="text-3xl font-bold mb-1">₹{totalExpense.toFixed(2)}</div>
                   <p className="text-red-100 text-sm">This period</p>
                 </CardContent>
               </Card>
@@ -300,11 +353,11 @@ const Transactions = () => {
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center justify-between">
                     <span>Net Balance</span>
-                    <DollarSign className="w-8 h-8 opacity-80" />
+                    <span className="text-3xl opacity-80">₹</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold mb-1">${netBalance.toFixed(2)}</div>
+                  <div className="text-3xl font-bold mb-1">₹{netBalance.toFixed(2)}</div>
                   <p className={`${netBalance >= 0 ? "text-blue-100" : "text-orange-100"} text-sm`}>
                     {netBalance >= 0 ? "Surplus" : "Deficit"}
                   </p>
@@ -314,128 +367,168 @@ const Transactions = () => {
 
             <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-amber-200 mb-6">
               <CardHeader className="bg-gradient-to-r from-amber-100 to-orange-100 border-b border-amber-200">
-                <CardTitle className="text-amber-900 text-lg flex items-center">
-                  <Filter className="w-5 h-5 mr-2" />
-                  Filters & Actions
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-amber-900 text-xl">Filters</CardTitle>
+                    <CardDescription className="text-amber-700">
+                      Refine the transaction records list | Date Range: {getDateRangeDisplay()}
+                    </CardDescription>
+                  </div>
+                  <Button
+                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                    onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                  >
+                    <Filter className="w-4 h-4 mr-2" />
+                    {showAdvancedFilters ? "Hide Filters" : "Show Filters"}
+                  </Button>
+                </div>
               </CardHeader>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
-                  <Select
-                    value={filters.transactionType}
-                    onValueChange={(value) => handleFilterChange("transactionType", value)}
-                  >
-                    <SelectTrigger className="border-amber-300">
-                      <SelectValue placeholder="All Types" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">All Types</SelectItem>
-                      <SelectItem value="INCOME">Income</SelectItem>
-                      <SelectItem value="EXPENSE">Expense</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value={filters.category}
-                    onValueChange={(value) => handleFilterChange("category", value)}
-                  >
-                    <SelectTrigger className="border-amber-300">
-                      <SelectValue placeholder="All Categories" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">All Categories</SelectItem>
-                      <SelectItem value="SUNDAY_COLLECTION">Sunday Collection</SelectItem>
-                      <SelectItem value="DONATION">Donation</SelectItem>
-                      <SelectItem value="SUBSCRIPTION_FEES">Subscription Fees</SelectItem>
-                      <SelectItem value="EVENT_REGISTRATION">Event Registration</SelectItem>
-                      <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
-                      <SelectItem value="SALARY">Salary</SelectItem>
-                      <SelectItem value="EVENT_EXPENSE">Event Expense</SelectItem>
-                      <SelectItem value="CHARITY">Charity</SelectItem>
-                      <SelectItem value="DUMPBOX">Dumpbox</SelectItem>
-                      <SelectItem value="SUNDAY_OFFERING">Sunday Offering</SelectItem>
-                      <SelectItem value="SUBSCRIPTION">Subscription</SelectItem>
-                      <SelectItem value="OTHER">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value={filters.period}
-                    onValueChange={(value) => handleFilterChange("period", value)}
-                  >
-                    <SelectTrigger className="border-amber-300">
-                      <SelectValue placeholder="Select Period" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Custom Period</SelectItem>
-                      <SelectItem value="1_MONTH">Last 1 Month</SelectItem>
-                      <SelectItem value="3_MONTHS">Last 3 Months</SelectItem>
-                      <SelectItem value="6_MONTHS">Last 6 Months</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  {!filters.period && (
-                    <>
+              {showAdvancedFilters && (
+                <CardContent className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-amber-700 mb-1">Transaction Type</label>
+                      <Select
+                        value={filters.transactionType}
+                        onValueChange={(value) => handleFilterChange("transactionType", value)}
+                      >
+                        <SelectTrigger className="border-amber-300">
+                          <SelectValue placeholder="All Types" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">All Types</SelectItem>
+                          <SelectItem value="INCOME">Income</SelectItem>
+                          <SelectItem value="EXPENSE">Expense</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="block text-amber-700 mb-1">Category</label>
+                      <Select
+                        value={filters.category}
+                        onValueChange={(value) => handleFilterChange("category", value)}
+                      >
+                        <SelectTrigger className="border-amber-300">
+                          <SelectValue placeholder="All Categories" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">All Categories</SelectItem>
+                          <SelectItem value="SUNDAY_COLLECTION">Sunday Collection</SelectItem>
+                          <SelectItem value="DONATION">Donation</SelectItem>
+                          <SelectItem value="SUBSCRIPTION_FEES">Subscription Fees</SelectItem>
+                          <SelectItem value="EVENT_REGISTRATION">Event Registration</SelectItem>
+                          <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                          <SelectItem value="SALARY">Salary</SelectItem>
+                          <SelectItem value="EVENT_EXPENSE">Event Expense</SelectItem>
+                          <SelectItem value="CHARITY">Charity</SelectItem>
+                          <SelectItem value="DUMPBOX">Dumpbox</SelectItem>
+                          <SelectItem value="SUNDAY_OFFERING">Sunday Offering</SelectItem>
+                          <SelectItem value="SUBSCRIPTION">Subscription</SelectItem>
+                          <SelectItem value="OTHER">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="block text-amber-700 mb-1">Period</label>
+                      <Select
+                        value={filters.period}
+                        onValueChange={(value) => handleFilterChange("period", value)}
+                      >
+                        <SelectTrigger className="border-amber-300">
+                          <SelectValue placeholder="Select Period" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Custom Period</SelectItem>
+                          <SelectItem value="1_MONTH">Last 1 Month</SelectItem>
+                          <SelectItem value="3_MONTHS">Last 3 Months</SelectItem>
+                          <SelectItem value="6_MONTHS">Last 6 Months</SelectItem>
+                          <SelectItem value="12_MONTHS">Last 12 Months</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {!filters.period && (
+                      <>
+                        <div>
+                          <label className="block text-amber-700 mb-1">Start Date</label>
+                          <Input
+                            type="date"
+                            value={filters.dateFrom}
+                            onChange={(e) => handleFilterChange("dateFrom", e.target.value)}
+                            className="border-amber-300 focus:border-amber-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-amber-700 mb-1">End Date</label>
+                          <Input
+                            type="date"
+                            value={filters.dateTo}
+                            onChange={(e) => handleFilterChange("dateTo", e.target.value)}
+                            className="border-amber-300 focus:border-amber-500"
+                          />
+                        </div>
+                      </>
+                    )}
+                    <div>
+                      <label className="block text-amber-700 mb-1">Min Amount</label>
                       <Input
-                        type="date"
-                        placeholder="From Date"
-                        value={filters.dateFrom}
-                        onChange={(e) => handleFilterChange("dateFrom", e.target.value)}
+                        type="number"
+                        value={filters.amountMin}
+                        onChange={(e) => handleFilterChange("amountMin", e.target.value)}
+                        placeholder="Min Amount"
                         className="border-amber-300 focus:border-amber-500"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-amber-700 mb-1">Max Amount</label>
                       <Input
-                        type="date"
-                        placeholder="To Date"
-                        value={filters.dateTo}
-                        onChange={(e) => handleFilterChange("dateTo", e.target.value)}
+                        type="number"
+                        value={filters.amountMax}
+                        onChange={(e) => handleFilterChange("amountMax", e.target.value)}
+                        placeholder="Max Amount"
                         className="border-amber-300 focus:border-amber-500"
                       />
-                    </>
-                  )}
-
-                  {filters.period && (
-                    <div className="col-span-2"></div>
-                  )}
-
-                  <Input
-                    type="number"
-                    placeholder="Min Amount"
-                    value={filters.amountMin}
-                    onChange={(e) => handleFilterChange("amountMin", e.target.value)}
-                    className="border-amber-300 focus:border-amber-500"
-                  />
-
-                  <Input
-                    type="number"
-                    placeholder="Max Amount"
-                    value={filters.amountMax}
-                    onChange={(e) => handleFilterChange("amountMax", e.target.value)}
-                    className="border-amber-300 focus:border-amber-500"
-                  />
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" onClick={clearFilters} className="border-amber-300 text-amber-700">
-                    Clear Filters
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleGeneratePDFReport}
-                    className="border-red-300 text-red-700 hover:bg-red-50"
-                  >
-                    <FileText className="w-4 h-4 mr-2" />
-                    Generate PDF
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleGenerateExcelReport}
-                    className="border-green-300 text-green-700 hover:bg-green-50"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Generate Excel
-                  </Button>
-                </div>
-              </CardContent>
+                    </div>
+                  </div>
+                  <div className="flex space-x-4 mt-6">
+                    <Button
+                      className="bg-amber-600 hover:bg-amber-700 text-white"
+                      onClick={applyFilters}
+                    >
+                      Apply Filters
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={clearFilters}
+                      className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                    >
+                      Clear Filters
+                    </Button>
+                    <GeneratePDFModal
+                      transactions={filteredTransactions}
+                      buttonContent={
+                        <>
+                          <FileText className="w-4 h-4 mr-2" />
+                          Generate PDF
+                        </>
+                      }
+                      buttonClassName="border-red-300 text-red-700 hover:bg-red-50"
+                      type="button"
+                    />
+                    <GenerateExcelModal
+                      transactions={filteredTransactions}
+                      filters={filters}
+                      buttonContent={
+                        <>
+                          <Download className="w-4 h-4 mr-2" />
+                          Generate Excel
+                        </>
+                      }
+                      buttonClassName="border-green-300 text-green-700 hover:bg-green-50"
+                      type="button"
+                    />
+                  </div>
+                </CardContent>
+              )}
             </Card>
 
             <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-amber-200">
@@ -448,10 +541,7 @@ const Transactions = () => {
                     </CardDescription>
                   </div>
                   <Button
-                    onClick={() => {
-                      setSelectedTransaction(null);
-                      setShowForm(true);
-                    }}
+                    onClick={handleAddButtonClick}
                     className="bg-amber-600 hover:bg-amber-700 text-white"
                   >
                     <Plus className="w-4 h-4 mr-2" />
@@ -460,13 +550,19 @@ const Transactions = () => {
                 </div>
               </CardHeader>
               <CardContent className="p-6">
-                <DataTable
-                  data={filteredTransactions}
-                  columns={transactionColumns}
-                  searchPlaceholder="Search by description, amount, or category..."
-                  onEdit={handleEditTransaction}
-                  onDelete={handleDeleteTransaction}
-                />
+                {filteredTransactions.length === 0 ? (
+                  <div className="text-center text-amber-600">
+                    No records match the selected filters.
+                  </div>
+                ) : (
+                  <DataTable
+                    data={filteredTransactions}
+                    columns={transactionColumns}
+                    searchPlaceholder="Search by description, amount, or category..."
+                    onEdit={handleEditTransaction}
+                    onDelete={handleDeleteTransaction}
+                  />
+                )}
               </CardContent>
             </Card>
           </>

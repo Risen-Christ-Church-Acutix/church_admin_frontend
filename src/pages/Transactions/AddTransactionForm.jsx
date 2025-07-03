@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from "react";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/Select";
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/Ca
 import { useToaster } from "../../components/Toaster";
 import axiosInstance from "../../api-handler/api-handler";
 
-const AddTransactionForm = ({ onClose, onSuccess }) => {
+const AddTransactionForm = forwardRef(({ onClose, onSuccess }, ref) => {
   const { success, error: toastError } = useToaster();
   const [formData, setFormData] = useState({
     amount: "",
@@ -25,6 +25,17 @@ const AddTransactionForm = ({ onClose, onSuccess }) => {
   const [fetchError, setFetchError] = useState(null);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [isEventListOpen, setIsEventListOpen] = useState(false);
+  const [eventSearch, setEventSearch] = useState(""); // State for search input
+  const amountInputRef = useRef(null); // Ref for the Amount input
+
+  // Expose focusForm method to parent via ref
+  useImperativeHandle(ref, () => ({
+    focusForm() {
+      if (amountInputRef.current) {
+        amountInputRef.current.focus();
+      }
+    },
+  }));
 
   // Memoized fetchEvents function
   const fetchEvents = useCallback(async () => {
@@ -50,6 +61,7 @@ const AddTransactionForm = ({ onClose, onSuccess }) => {
   // Toggle event list visibility
   const toggleEventList = () => {
     setIsEventListOpen((prev) => !prev);
+    setEventSearch(""); // Reset search when toggling the list
   };
 
   // Handle event selection
@@ -65,12 +77,23 @@ const AddTransactionForm = ({ onClose, onSuccess }) => {
       amount: event.registrationFees != null ? event.registrationFees.toString() : "",
     }));
     setIsEventListOpen(false);
+    setEventSearch(""); // Reset search on selection
   };
 
   // Handle form input changes
   const handleChange = (key, value) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
+
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    setEventSearch(e.target.value);
+  };
+
+  // Filter events based on search input
+  const filteredEvents = events.filter((event) =>
+    (event.title || "Unnamed Event").toLowerCase().includes(eventSearch.toLowerCase())
+  );
 
   // Handle form submission
   const handleSubmit = async (e) => {
@@ -126,6 +149,7 @@ const AddTransactionForm = ({ onClose, onSuccess }) => {
                 className="col-span-3 border-amber-300 focus:border-amber-500"
                 required
                 readOnly={selectedEvent}
+                ref={amountInputRef}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
@@ -178,18 +202,27 @@ const AddTransactionForm = ({ onClose, onSuccess }) => {
                 </div>
                 {isEventListOpen && (
                   <div className="mt-1">
+                    <Input
+                      type="text"
+                      placeholder="Search events..."
+                      value={eventSearch}
+                      onChange={handleSearchChange}
+                      className="mb-2 border-amber-300 focus:border-amber-500"
+                    />
                     {isLoadingEvents && (
                       <p className="text-gray-500 text-sm px-3 py-2">Loading events...</p>
                     )}
                     {fetchError && (
                       <p className="text-red-500 text-sm px-3 py-2">{fetchError}</p>
                     )}
-                    {!isLoadingEvents && !fetchError && events.length === 0 && (
-                      <p className="text-gray-500 text-sm px-3 py-2">No ongoing events</p>
+                    {!isLoadingEvents && !fetchError && filteredEvents.length === 0 && (
+                      <p className="text-gray-500 text-sm px-3 py-2">
+                        {eventSearch ? "No events match your search" : "No ongoing events"}
+                      </p>
                     )}
-                    {!isLoadingEvents && !fetchError && events.length > 0 && (
+                    {!isLoadingEvents && !fetchError && filteredEvents.length > 0 && (
                       <ul className="max-h-40 overflow-y-auto border border-amber-300 rounded-md bg-amber-50">
-                        {events.map((event) => (
+                        {filteredEvents.map((event) => (
                           <li
                             key={event.id}
                             className={`px-3 py-1 text-sm font-medium cursor-pointer transition-colors ${
@@ -271,6 +304,6 @@ const AddTransactionForm = ({ onClose, onSuccess }) => {
       </CardContent>
     </Card>
   );
-};
+});
 
 export default AddTransactionForm;
